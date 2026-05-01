@@ -1,6 +1,6 @@
 # JupRemit — Developer Experience Report
 **Submitted for: Not Your Regular Bounty — Jupiter Frontier Hackathon**
-**Developer Platform account:** [your portal.jup.ag email here]
+**Developer Platform account:** jupinoy.meow@gmail.com
 **Project:** JupRemit — OFW Remittance dApp on Jupiter
 **APIs used:** Ultra Swap V2, Jupiter Lend (Earn), Price V2, FX data
 
