@@ -1,0 +1,22 @@
+[toolchain]
+anchor_version = "0.30.1"
+
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+jupremit = "EXjLoxj7w7Au9imdv8zH9XndZxbNd4NwDbv4bvqx9QUS"
+
+[programs.devnet]
+jupremit = "EXjLoxj7w7Au9imdv8zH9XndZxbNd4NwDbv4bvqx9QUS"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
