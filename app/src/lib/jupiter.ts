@@ -342,6 +342,8 @@ export async function quoteInstantBoost(
     const step1Out  = sendAmountUsdc * 0.99963;  // observed: 100→99.963732
     const step2Out  = step1Out * 1.0004;          // observed: 99.96→100.005
     const netGain   = step2Out - sendAmountUsdc - 0.003;
+    const order1: any = {}; // placeholder to satisfy type, real route info not available in fallback
+    const order2: any = {};
     return {
       step1Out,
       step2Out,
