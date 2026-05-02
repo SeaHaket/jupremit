@@ -50,7 +50,16 @@ export default function HomeScreen({ onSend, onVault }: Props) {
 
   if (!connected) return (
     <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: 12, textAlign: "center" }}>
-      <div style={{ fontSize: 64 }}>🪐</div>
+      <img 
+  src="/jupit-logo.png" 
+  alt="Just Jup It" 
+  style={{ 
+    width: 180, 
+    height: 180, 
+    mixBlendMode: "screen",
+    marginBottom: 8 
+  }} 
+/>
       <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text)" }}>Welcome to JupRemit</div>
       <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
         DeFi remittance for OFWs.<br />
