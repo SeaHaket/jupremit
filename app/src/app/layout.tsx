@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               style={{
                 position: "absolute", inset: 0, width: "100%", height: "100%",
                 objectFit: "cover", objectPosition: "center",
-                opacity: 0.06, mixBlendMode: "screen",
+                opacity: 0.09, mixBlendMode: "screen",
                 pointerEvents: "none", userSelect: "none", zIndex: 0,
               }}
             />
