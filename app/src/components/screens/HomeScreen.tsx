@@ -17,11 +17,11 @@ function AppLogo({ style }: { style?: React.CSSProperties }) {
         display: "flex", alignItems: "center", justifyContent: "center",
         fontWeight: 900, fontSize: Number(style?.width ?? 60) * 0.42,
         color: "#C7F284", letterSpacing: "-0.02em",
-      }}>P</div>
+      }}>J</div>
     );
   }
   return (
-    <img src={LOGO_SRCS[idx]} alt="PasaPay" style={style} onError={() => setIdx(i => i + 1)} />
+    <img src={LOGO_SRCS[idx]} alt="JupRemit" style={style} onError={() => setIdx(i => i + 1)} />
   );
 }
 
@@ -279,7 +279,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
       {/* Content above watermark */}
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, width: "100%" }}>
       <AppLogo style={{ width: 104, height: 104, borderRadius: 28, marginBottom: 2, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }} />
-      <div className="grad-green" style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>PasaPay</div>
+      <div className="grad-green" style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>JupRemit</div>
       <div style={{ fontSize: 12, color: "var(--text3)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginTop: -6 }}>
         Global DeFi Remittance
       </div>
@@ -314,7 +314,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <AppLogo style={{ width: 30, height: 30, borderRadius: 9 }} />
-          <span style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", letterSpacing: "-0.02em" }}>PasaPay</span>
+          <span style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", letterSpacing: "-0.02em" }}>JupRemit</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "4px 10px" }}>
@@ -418,7 +418,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
 
           {/* PasaPay row */}
           <div style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ flex: 2,   fontSize: 12, fontWeight: 800, color: "var(--green)" }}>⚡ PasaPay</span>
+            <span style={{ flex: 2,   fontSize: 12, fontWeight: 800, color: "var(--green)" }}>⚡ JupRemit</span>
             <span style={{ flex: 1.2, fontSize: 12, fontWeight: 800, color: "var(--green)", textAlign: "right" }}>$100</span>
             <span style={{ flex: 1.8, fontSize: 12, fontWeight: 800, color: "var(--green)", textAlign: "right" }}>
               {country.symbol}{pasapayAmt.toLocaleString()}
@@ -446,7 +446,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
                 borderRadius: 10, padding: "7px 12px", marginBottom: 8,
               }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "var(--green-d)", lineHeight: 1.4 }}>
-                  <div>With PasaPay family gets</div>
+                  <div>With JupRemit family gets</div>
                   <div style={{ color: "var(--text3)" }}>
                     +{country.symbol}{r.rateGain.toLocaleString()} better rate
                     &nbsp;·&nbsp;save ${r.fee.toFixed(2)} fee
@@ -533,9 +533,9 @@ export default function HomeScreen({ onSend, onVault }: Props) {
         </button>
 
         {/* How it works */}
-        <div className="label-xs" style={{ marginTop: 20 }}>How PasaPay works</div>
+        <div className="label-xs" style={{ marginTop: 20 }}>How JupRemit works</div>
         {([
-          { icon: "💳", t: "Funded through JupCard",           d: "Your salary lands in JupCard — either by setting it as your direct deposit receiver or by manually sending from your paycard via ACH. PasaPay reads your JupCard balance and you decide: remit now, save in the Vault, or do both." },
+          { icon: "💳", t: "Funded through JupCard",           d: "Your salary lands in JupCard — either by setting it as your direct deposit receiver or by manually sending from your paycard via ACH. JupRemit reads your JupCard balance and you decide: remit now, save in the Vault, or do both." },
           { icon: "⚡", t: "Zero-fee swap via Jupiter",       d: "USDC → JupUSD → USDC via Jupiter Ultra Swap. JupUSD trades at a small premium — net positive for the sender in under 1 second." },
           { icon: "📈", t: "Earn yield while waiting",        d: `Park USDC in JUICED (Jupiter Lend) at ${apy}% APY for up to 30 days. Your recipient receives more, not less.` },
           { icon: "🌍", t: "Recipient gets local currency",   d: `Arrives in their local wallet — GCash, Paytm, M-Pesa, Nubank, and 50+ providers across ${COUNTRIES.length} countries and growing.` },

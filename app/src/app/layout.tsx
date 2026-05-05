@@ -3,13 +3,13 @@ import "./globals.css";
 import { WalletContextProvider } from "@/components/ui/WalletProvider";
 
 export const metadata: Metadata = {
-  title:       "PasaPay — Global DeFi Remittance on Solana",
+  title:       "JupRemit — Global DeFi Remittance on Solana",
   description: "$0 fees. Mid-market rates. Earn yield in transit. Send to 12+ countries via Jupiter.",
-  icons:       { icon: "/logo.png" },
+  icons:       { icon: "/logo.svg" },
   openGraph: {
-    title:       "PasaPay",
+    title:       "JupRemit",
     description: "Send money anywhere in the world for almost free — DeFi remittance powered by Jupiter on Solana.",
-    siteName:    "PasaPay",
+    siteName:    "JupRemit",
   },
 };
 
