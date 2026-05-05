@@ -17,16 +17,14 @@ export async function POST(req: NextRequest) {
   try {
     // Get current position to know exact USDC value of jlUSDC
     const posRes  = await fetch(
-      `${JUP_API}/lend/v1/earn/positions?wallet=${senderWallet}`,
+      `${JUP_API}/lend/v1/earn/positions?users=${senderWallet}`,
       { headers: { "x-api-key": API_KEY } }
     );
     const posData = await posRes.json();
 
     // Find USDC position
     const positions = posData.positions ?? posData ?? [];
-    const usdcPos   = positions.find((p: any) =>
-      p.mint === USDC || p.inputMint === USDC
-    );
+    const usdcPos   = positions.find((p: any) => p.asset === USDC);
 
     // Estimate current value (Jupiter Lend will give exact on withdraw)
     const currentValueRaw = usdcPos?.balanceUsdc

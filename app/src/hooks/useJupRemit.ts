@@ -3,21 +3,41 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { VersionedTransaction } from "@solana/web3.js";
-import {
-  getUltraOrder,
-  executeUltraOrder,
-  buildLendDepositTx,
-  buildLendWithdrawTx,
-} from "@/lib/jupiter";
 import { MINTS, toUsdcLamports, fromUsdcLamports } from "@/lib/constants";
+
+// Server-proxied Jupiter calls — API key stays server-side
+async function ultraOrder(inputMint: string, outputMint: string, amount: string, taker: string) {
+  const params = new URLSearchParams({ inputMint, outputMint, amount, taker });
+  const res = await fetch(`/api/ultra/order?${params}`);
+  if (!res.ok) throw new Error(`Ultra order failed: ${res.status}`);
+  return res.json();
+}
+async function ultraExecute(signedTransaction: string, requestId: string) {
+  const res = await fetch("/api/ultra/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ signedTransaction, requestId }),
+  });
+  if (!res.ok) throw new Error(`Ultra execute failed: ${res.status}`);
+  return res.json();
+}
+async function lendDeposit(asset: string, amount: string, signer: string): Promise<string> {
+  const res = await fetch("/api/lend/deposit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ asset, amount, signer }),
+  });
+  if (!res.ok) throw new Error(`Lend deposit failed: ${res.status}`);
+  const data = await res.json();
+  if (!data.transaction) throw new Error(data.error ?? "No transaction returned");
+  return data.transaction;
+}
 import type {
   InstantBoostQuote,
   TransitYieldQuote,
   CompetitorData,
   SendFlowState,
   SendMode,
-  SendStep,
-  FxRates,
 } from "@/types";
 
 // ─── useFxRate ────────────────────────────────────────────────────────────────
@@ -137,7 +157,7 @@ export function useVaultProjection(monthly: number, months: number, apy: number)
   const routerCost    = 0.003 * months;
   const netReturn     = total + yield_ - routerCost;
   const returnPct     = total > 0 ? (yield_ / total) * 100 : 0;
-  return { total, yield_, routerCost, netReturn, returnPct };
+  return { totalDeposited: total, projectedYield: yield_, routerCost, netReturn, returnPct };
 }
 
 // ─── useSendFlow ──────────────────────────────────────────────────────────────
@@ -157,7 +177,7 @@ export function useSendFlow() {
 
   // ── Execute Instant Boost: USDC→JupUSD→USDC via Jupiter Ultra ────────────
   const executeInstantBoost = useCallback(
-    async (sendAmountUsdc: number, recipientWallet: string) => {
+    async (sendAmountUsdc: number, _recipientWallet: string) => {
       if (!publicKey || !signTransaction) {
         set({ error: "Wallet not connected" }); return;
       }
@@ -170,27 +190,27 @@ export function useSendFlow() {
 
         // ── Leg 1: USDC → JupUSD ─────────────────────────────────────────────
         set({ step: "swapping" });
-        const leg1Order = await getUltraOrder(MINTS.USDC, MINTS.JUPUSD, lamports, taker);
+        const leg1Order = await ultraOrder(MINTS.USDC, MINTS.JUPUSD, lamports, taker);
         if (!leg1Order.transaction) throw new Error("No transaction in leg 1 order");
 
         const tx1     = VersionedTransaction.deserialize(Buffer.from(leg1Order.transaction, "base64"));
         const signed1 = await signTransaction(tx1);
         const sig1b64 = Buffer.from(signed1.serialize()).toString("base64");
 
-        const exec1 = await executeUltraOrder(sig1b64, leg1Order.requestId);
+        const exec1 = await ultraExecute(sig1b64, leg1Order.requestId);
         if (exec1.status !== "Success") throw new Error(`Leg 1 failed: ${exec1.error}`);
 
         const jupusdReceived = exec1.outputAmountResult;
 
         // ── Leg 2: JupUSD → USDC ─────────────────────────────────────────────
-        const leg2Order = await getUltraOrder(MINTS.JUPUSD, MINTS.USDC, jupusdReceived, taker);
+        const leg2Order = await ultraOrder(MINTS.JUPUSD, MINTS.USDC, jupusdReceived, taker);
         if (!leg2Order.transaction) throw new Error("No transaction in leg 2 order");
 
         const tx2     = VersionedTransaction.deserialize(Buffer.from(leg2Order.transaction, "base64"));
         const signed2 = await signTransaction(tx2);
         const sig2b64 = Buffer.from(signed2.serialize()).toString("base64");
 
-        const exec2 = await executeUltraOrder(sig2b64, leg2Order.requestId);
+        const exec2 = await ultraExecute(sig2b64, leg2Order.requestId);
         if (exec2.status !== "Success") throw new Error(`Leg 2 failed: ${exec2.error}`);
 
         const finalUsdc = fromUsdcLamports(exec2.outputAmountResult);
@@ -226,10 +246,10 @@ export function useSendFlow() {
       set({ step: "routing", mode: "transit_yield", error: null, signatures: [] });
 
       try {
-        // Get unsigned deposit transaction from Lend API
+        // Get unsigned deposit transaction from Lend API (server-proxied)
         set({ step: "depositing" });
         const lamports = toUsdcLamports(sendAmountUsdc);
-        const txBase64 = await buildLendDepositTx(MINTS.USDC, lamports, publicKey.toBase58());
+        const txBase64 = await lendDeposit(MINTS.USDC, lamports, publicKey.toBase58());
 
         const tx     = VersionedTransaction.deserialize(Buffer.from(txBase64, "base64"));
         const signed = await signTransaction(tx);

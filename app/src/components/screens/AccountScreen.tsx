@@ -11,7 +11,7 @@ const COUNTRIES = [
   { flag: "🇹🇭", name: "Thailand",    currency: "THB", providers: ["PromptPay", "TrueMoney"] },
   { flag: "🇲🇾", name: "Malaysia",    currency: "MYR", providers: ["Touch'n Go", "DuitNow"] },
   { flag: "🇸🇬", name: "Singapore",   currency: "SGD", providers: ["PayNow", "GrabPay"] },
-  { flag: "🇬🇧", name: "UK",          currency: "GBP", providers: ["Faster Payments", "Wise"] },
+  { flag: "🇿🇦", name: "South Africa", currency: "ZAR", providers: ["Standard Bank", "FNB", "Capitec"] },
   { flag: "🇺🇸", name: "USA",         currency: "USD", providers: ["ACH", "Venmo", "Zelle"] },
   { flag: "🇳🇬", name: "Nigeria",     currency: "NGN", providers: ["OPay", "Flutterwave"] },
   { flag: "🇰🇪", name: "Kenya",       currency: "KES", providers: ["M-Pesa"] },
@@ -57,9 +57,11 @@ export default function AccountScreen() {
   if (step === "add") return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--bg)", position: "sticky" as const, top: 0, zIndex: 10 }}>
-        <button onClick={() => setStep("main")} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text2)", fontSize: 18 }}>←</button>
+        <button onClick={() => setStep("main")} style={{ width: 36, height: 36, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text2)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
         <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Add Recipient</span>
-        <div style={{ width: 32 }} />
+        <div style={{ width: 36 }} />
       </div>
 
       <div style={{ padding: 16 }}>

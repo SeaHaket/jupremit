@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-const FALLBACK: Record<string,number> = {PHP:61.16,IDR:16350,VND:25400,THB:34.2,MYR:4.48,SGD:1.34,JPY:143.5,KRW:1370,AUD:1.58,GBP:0.79,NGN:1620,KES:129,INR:83.4,BRL:5.2,USD:1};
+const FALLBACK: Record<string,number> = {
+  PHP:61.16, IDR:16350, VND:25400, THB:34.2,  MYR:4.48,  SGD:1.34,
+  JPY:143.5, KRW:1370,  AUD:1.58,  ZAR:18.5,  NGN:1620,  KES:129,
+  INR:83.4,  BRL:5.2,   MXN:17.2,  BDT:110,   PKR:278,   GHS:15.5,
+  EGP:48.8,  USD:1,
+};
 export async function GET(req: NextRequest) {
   const currency = (req.nextUrl.searchParams.get("currency") ?? "PHP").toUpperCase();
   try {

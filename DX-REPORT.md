@@ -1,7 +1,7 @@
-# JupRemit — Developer Experience Report
+# JupRemit (PasaPay) — Developer Experience Report
 **Submitted for: Not Your Regular Bounty — Jupiter Frontier Hackathon**
-**Developer Platform account:** - jupinoy.meow@gmail.com
-**Project:** JupRemit — OFW Remittance dApp on Jupiter
+**Developer Platform account:** jupinoy.meow@gmail.com
+**Project:** JupRemit / PasaPay — Global DeFi Remittance dApp on Jupiter
 **APIs used:** Ultra Swap V2, Jupiter Lend (Earn), Price V2, FX data
 
 ---
@@ -81,7 +81,7 @@ A developer new to bps will set `referralFee: 0.2` instead of `referralFee: 20` 
 
 ### Ultra Swap: JupUSD/USDC spread is real but inconsistent
 
-The core insight of JupRemit's Instant Boost mode is that JupUSD trades at a slight premium to USDC. From live data: 100 USDC → 99.963732 JupUSD → 100.005184 USDC, routed via OKX DEX Router at 0.00% platform fee. This is profitable. But the spread is not consistent — it depends on liquidity depth at the time of the quote. The round-trip can be flat or slightly negative during low-liquidity windows. The `/order` endpoint gives you the live quote but no indication of historical spread distribution. A "spread confidence" signal or a 24h average would make this use case much more reliable to build on.
+The core insight of PasaPay's Instant Boost mode is that JupUSD trades at a slight premium to USDC. From live data: 100 USDC → 99.963732 JupUSD → 100.005184 USDC, routed via OKX DEX Router at 0.00% platform fee. This is profitable. But the spread is not consistent — it depends on liquidity depth at the time of the quote. The round-trip can be flat or slightly negative during low-liquidity windows. The `/order` endpoint gives you the live quote but no indication of historical spread distribution. A "spread confidence" signal or a 24h average would make this use case much more reliable to build on.
 
 ### Lend: No way to check if a deposit will succeed before signing
 
@@ -95,12 +95,14 @@ If you pass a mint that doesn't exist in the Price API's index, it's silently om
 
 ## AI Stack Feedback
 
-I used **Claude Code** (Anthropic) with the Jupiter docs as context throughout this build.
+I used **Claude Code** (Anthropic) with the Jupiter docs as context throughout this build. This is a CLI-based AI coding tool that works directly inside the project directory — it can read files, run commands, and write code end-to-end.
 
 ### What worked
 
-- The Ultra Swap API is AI-friendly by design. The endpoint is REST, the parameters are self-explanatory, and the response shape is consistent. Claude was able to generate correct integration code on the first attempt with just the doc URL as context.
+- The Ultra Swap API is AI-friendly by design. The endpoint is REST, the parameters are self-explanatory, and the response shape is consistent. Claude Code was able to generate correct integration code on the first attempt with just the doc URL as context.
 - `/price/v2` is similarly excellent for AI. Simple GET, clean JSON, predictable.
+- Claude Code handled the full frontend build — all four screens (Home, Send, Vault, Account), the dynamic country selector with live FX comparison for all 12 destination countries, the Savings Vault flow, and the custom numpad — in a single long session. The Jupiter dark design system translated cleanly from CSS variables into inline React styles.
+- The FX route (`/api/fx`) with automatic fallback rates was generated correctly on the first pass, including the open.er-api.com integration and per-currency fallback values for all 12 supported destinations.
 
 ### What didn't work
 
@@ -155,7 +157,7 @@ If a response field changes how a developer should handle execution, it needs to
 
 ## Timed Send — Jupiter Lend Integration
 
-One of the more creative API combinations in JupRemit is the **Timed Send** feature. Instead of sending USDC immediately, the sender can choose a 5, 15, or 30-day hold period. The USDC goes into JUICED (Jupiter Lend Earn) and earns 4.5% APY while the hold timer runs. After the period ends, the sender triggers a release — Jupiter Lend withdraws the USDC + yield, and it transfers to the recipient in one flow.
+One of the more creative API combinations in PasaPay is the **Timed Send** feature. Instead of sending USDC immediately, the sender can choose a 5, 15, or 30-day hold period. The USDC goes into JUICED (Jupiter Lend Earn) and earns 4.5% APY while the hold timer runs. After the period ends, the sender triggers a release — Jupiter Lend withdraws the USDC + yield, and it transfers to the recipient in one flow.
 
 This took significant API exploration to build. Key findings:
 
@@ -167,9 +169,9 @@ This took significant API exploration to build. Key findings:
 
 The Timed Send feature also documents a real product insight: for OFWs sending money to family, a 15-30 day hold earning yield is actually useful — many seafarers get paid monthly and want funds to arrive at a specific time, not immediately. The yield is a bonus, not the main feature.
 
+---
+
 ## Why I Built This
-
-
 
 I am a seafarer. I live on ships for months at a time, and every month I open Brightwell to send money home to my family. Every month the same thing happens — $8 flat fee, a 4% FX spread on top, and by the time the money lands it's meaningfully less than what I sent. That money came from working at sea, away from my family. The remittance industry's answer is to charge me for the privilege of sending it home.
 
@@ -177,7 +179,7 @@ I built JupRemit because DeFi can actually fix this — and because nobody has b
 
 But the vision goes further than remittance. Seafarers already carry paycards. We already use them to buy things at port. Crypto cards are proliferating everywhere, but most of them are built for crypto natives and will disappear when the memecoin mania fades. The projects that survive will be the ones that found real distribution with real users who have a real problem.
 
-JupRemit is designed to position JupCard as the card that normal people — OFWs, seafarers, migrant workers — actually use. Not because they care about DeFi, but because it stops fees from eating their family's money and starts putting yield in their pocket instead. That's the unlock nobody in this space has executed on yet: 281 million migrant workers as a distribution channel for Jupiter's ecosystem.
+JupRemit (branded PasaPay in the app) is designed to position JupCard as the card that normal people — OFWs, seafarers, migrant workers — actually use. Not because they care about DeFi, but because it stops fees from eating their family's money and starts putting yield in their pocket instead. That's the unlock nobody in this space has executed on yet: 281 million migrant workers as a distribution channel for Jupiter's ecosystem.
 
 The technical work in this DX report is real. The bugs I documented are real. But so is the reason I spent three days debugging Rust borrow checker errors and anchor-syn GLIBC incompatibilities at sea — because the product on the other side of those errors is worth building.
 
@@ -190,6 +192,8 @@ Jupiter's APIs are genuinely good infrastructure. The Ultra Swap V2 (`/order` + 
 The biggest unlock for the developer ecosystem is not new features — it's filling the documentation gaps that make the existing features take 4 hours to integrate instead of 30 minutes. The Lend Earn Agent Skill alone would meaningfully increase the number of projects that successfully integrate it in a hackathon context.
 
 **JupRemit demonstrates that the "last mile" of DeFi remittance — sending money home for almost free, earning yield on transit — is now technically possible with Jupiter's stack.** The gaps are in developer tooling, not in the underlying protocol.
+
+The app covers 12 destination countries (Philippines, Indonesia, Vietnam, Thailand, Malaysia, Singapore, South Africa, USA, Nigeria, Kenya, India, Brazil) with a live dynamic comparison table on the homepage showing exactly how much more a family receives via PasaPay vs Western Union, MoneyGram, Brightwell, or Remitly — in local currency, in real time.
 
 ---
 

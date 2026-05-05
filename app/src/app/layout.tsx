@@ -3,13 +3,13 @@ import "./globals.css";
 import { WalletContextProvider } from "@/components/ui/WalletProvider";
 
 export const metadata: Metadata = {
-  title:       "JupRemit — OFW Remittance on Jupiter",
-  description: "$0 fees. Mid-market rates. 4.5% yield on transit. Built on Jupiter.",
-  icons:       { icon: "/favicon.svg" },
+  title:       "PasaPay — Global DeFi Remittance on Solana",
+  description: "$0 fees. Mid-market rates. Earn yield in transit. Send to 12+ countries via Jupiter.",
+  icons:       { icon: "/logo.png" },
   openGraph: {
-    title:       "JupRemit",
-    description: "Send money home for almost free — DeFi remittance for OFWs",
-    siteName:    "JupRemit",
+    title:       "PasaPay",
+    description: "Send money anywhere in the world for almost free — DeFi remittance powered by Jupiter on Solana.",
+    siteName:    "PasaPay",
   },
 };
 
@@ -21,11 +21,7 @@ export const viewport: Viewport = {
   themeColor:   "#17171A",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>

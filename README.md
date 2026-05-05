@@ -1,4 +1,4 @@
-# JupRemit
+# JupRemit (PasaPay)
 
 > **The only remittance dApp that gives you yield instead of eating your hard-earned money.**
 
@@ -38,7 +38,11 @@ This is what positions Jupiter differently from every other DeFi protocol chasin
 
 ## What JupRemit Does
 
-JupRemit is a **non-custodial DeFi remittance dApp** built entirely on Jupiter's Developer Platform. It lets OFWs and seafarers send USDC home to their families with:
+JupRemit is a **non-custodial DeFi remittance dApp** built entirely on Jupiter's Developer Platform. The app UI is branded **PasaPay** — a name chosen to feel familiar and accessible to OFW families, not intimidating like "crypto" or "DeFi." Under the hood it's all Jupiter.
+
+**The money flow starts with JupCard.** A seafarer either sets JupCard as the direct deposit receiver of their salary, or manually sends from their existing paycard (Brightwell, etc.) to JupCard via ACH. Once the USDC is in JupCard, PasaPay reads the balance and the user decides what to do: remit the full amount immediately, save a portion in the Vault while sending the rest, or hold everything and earn yield before releasing it to the family.
+
+It lets OFWs and seafarers send USDC home to their families with:
 
 - **$0.003 in fees** (Solana gas only — no platform fee, no FX spread)
 - **Mid-market exchange rate** — exactly what Reuters quotes, not what Brightwell quotes
@@ -49,17 +53,23 @@ This is the first remittance product where sending money home can leave the reci
 
 ---
 
-## Live Comparison — $100 USD to Philippines (PHP)
+## Live Comparison — Dynamic per Destination Country
+
+The homepage shows a live comparison table that updates based on the destination country the user selects. The app covers 12 destination countries with real fee and FX markup data:
+
+**Example: $100 USD → Philippines (PHP)**
 
 | Provider | Fee | You Pay | Family Receives (est.) |
 |---|---|---|---|
-| **JupRemit ⚡** | **$0.003** | **$100.003** | **₱6,116** |
-| Brightwell | $8.00 | $108.00 | ₱5,397 |
-| MoneyGram | $5.00 | $105.00 | ₱5,628 |
-| Western Union | $6.99 | $106.99 | ₱5,451 |
+| **PasaPay ⚡** | **$0.003** | **$100.003** | **₱6,116** |
+| Brightwell | $8.00 | $108.00 | ₱5,396 |
+| MoneyGram | $5.00 | $105.00 | ₱5,913 |
+| Western Union | $6.99 | $106.99 | ₱5,820 |
 
-*Family receives est. ₱719 more with JupRemit vs Brightwell on a single $100 transfer.*
-*Est. amounts based on Apr 2026 published rate cards and live mid-market FX.*
+*Family receives est. ₱720 more with PasaPay vs Brightwell on a single $100 transfer.*
+*Est. amounts based on Apr–May 2026 published rate cards and live mid-market FX.*
+
+The comparison table is **fully dynamic** — selecting any of the 12 destination countries recalculates the rates, fees, and local-currency savings in real time from the live FX API.
 
 ---
 
@@ -85,11 +95,6 @@ Net gain after gas: +$0.002184
 
 Your family gets slightly more USDC than you sent. Zero waiting.
 
-### 🕐 Transit Yield — up to 5 days
-USDC → **JUICED** (jlJupUSD, Jupiter Lend Earn vault) → USDC on claim.
-
-Funds earn **4.5% APY** while sitting in Jupiter Lend waiting for your family to claim. If they don't claim within your chosen hold period (1–5 days), funds auto-return to your JupCard wallet. The yield router compares the net gain from JUICED against the swap cost and picks whichever is better for your amount and hold duration.
-
 ### 🔒 Seafarer Savings Vault — 1 to 5 months
 Designed specifically for seafarers on ship contracts.
 
@@ -107,7 +112,7 @@ JupCard virtual US bank account
 (receives salary as USDC via ACH)
     │
     ▼
-JupRemit dApp
+PasaPay / JupRemit dApp
     │
     ├─ Yield Router (server-side)
     │   ├─ Instant Boost:    Ultra /order + /execute  →  USDC→JupUSD→USDC
@@ -119,8 +124,8 @@ JupRemit dApp
     │   └─ Vault PDA         — holds savings, enforces maturity
     │
     └─ Offramp
-        └─ Recipient's Coins.ph / GoPay / M-Pesa Solana wallet
-            └─ They convert USDC → PHP / IDR / KES at their provider's rate
+        └─ Recipient's Coins.ph / GoPay / M-Pesa / Standard Bank Solana wallet
+            └─ They convert USDC → PHP / IDR / KES / ZAR at their provider's rate
 ```
 
 ---
@@ -165,9 +170,9 @@ The Anchor program lives at `programs/jupremit/src/lib.rs`.
 
 ## Supported Countries
 
-18 countries with local offramp providers:
+12 destination countries with local offramp providers, selectable dynamically from the homepage:
 
-🇵🇭 Philippines (Coins.ph, GCash, Maya) · 🇮🇩 Indonesia (GoPay, OVO, DANA) · 🇻🇳 Vietnam (MoMo, ZaloPay) · 🇹🇭 Thailand (PromptPay, TrueMoney) · 🇲🇾 Malaysia (Touch'n Go, DuitNow) · 🇸🇬 Singapore (PayNow, GrabPay) · 🇰🇭 Cambodia (ABA Bank, Wing) · 🇲🇲 Myanmar (KBZPay, Wave Money) · 🇯🇵 Japan (Wise, PayPay) · 🇰🇷 South Korea (KakaoPay, Toss) · 🇦🇺 Australia (PayID, Wise) · 🇬🇧 UK (Faster Payments, Wise, Revolut) · 🇺🇸 USA (ACH, Venmo, Zelle) · 🇳🇬 Nigeria (OPay, Flutterwave) · 🇰🇪 Kenya (M-Pesa) · 🇮🇳 India (UPI, PhonePe) · 🇧🇷 Brazil (Pix, Nubank) · 🌍 200+ countries (any Solana wallet)
+🇵🇭 Philippines (Coins.ph, GCash, Maya) · 🇮🇩 Indonesia (GoPay, OVO, DANA) · 🇻🇳 Vietnam (MoMo, ZaloPay) · 🇹🇭 Thailand (PromptPay, TrueMoney) · 🇲🇾 Malaysia (Touch'n Go, DuitNow) · 🇸🇬 Singapore (PayNow, GrabPay) · 🇿🇦 South Africa (Standard Bank, FNB, Capitec) · 🇺🇸 USA (ACH, Venmo, Zelle) · 🇳🇬 Nigeria (OPay, Flutterwave) · 🇰🇪 Kenya (M-Pesa) · 🇮🇳 India (UPI, PhonePe) · 🇧🇷 Brazil (Pix, Nubank) · 🌍 200+ countries (any Solana wallet)
 
 ---
 
@@ -181,15 +186,18 @@ jupremit/
 ├── programs/jupremit/src/lib.rs     ← Anchor smart contract (all on-chain logic)
 ├── tests/jupremit.ts                ← Integration tests (10 test cases)
 ├── scripts/deploy-devnet.sh         ← Automated devnet deploy script
-└── app/                             ← Next.js 14 frontend
+└── app/                             ← Next.js 14 frontend (branded "PasaPay")
     ├── .env.local                   ← Your keys (you create this)
+    ├── public/
+    │   ├── logo.svg                 ← PasaPay app icon
+    │   └── jupit-logo.png           ← "Just Jup It" background on landing page
     ├── src/
     │   ├── app/
-    │   │   ├── page.tsx             ← Main page / tab router
+    │   │   ├── page.tsx             ← Main page / tab router (Home, Send, Vault, Account)
     │   │   ├── layout.tsx           ← Wallet adapter provider
-    │   │   ├── globals.css          ← Jupiter design system
+    │   │   ├── globals.css          ← Jupiter dark design system
     │   │   └── api/                 ← 7 server-side API routes
-    │   │       ├── fx/              ← GET live FX rates
+    │   │       ├── fx/              ← GET live FX rates (open.er-api.com + fallbacks)
     │   │       ├── apy/             ← GET JUICED APY
     │   │       ├── position/        ← GET user Lend position
     │   │       ├── quote/           ← GET full send mode comparison
@@ -205,12 +213,13 @@ jupremit/
     │   └── components/
     │       ├── ui/
     │       │   ├── WalletProvider.tsx   ← Phantom/Solflare/Backpack setup
-    │       │   └── index.tsx            ← Shared UI components
+    │       │   ├── AddressInput.tsx     ← Recipient address input
+    │       │   └── Numpad.tsx           ← Custom numeric keypad
     │       └── screens/
-    │           ├── HomeScreen.tsx       ← Dashboard + balance + yield ticker
-    │           ├── SendScreen.tsx       ← Full send flow (5 steps)
+    │           ├── HomeScreen.tsx       ← Dashboard + country selector + live comparison
+    │           ├── SendScreen.tsx       ← Full send flow with dynamic numpad
     │           ├── VaultScreen.tsx      ← Savings vault manager
-    │           └── AccountScreen.tsx   ← Wallet + recipients + countries
+    │           └── AccountScreen.tsx    ← Wallet + recipients + 12-country selector
 ```
 
 ---
@@ -275,7 +284,7 @@ There are 281 million migrant workers in the world. Seafarers alone number 1.9 m
 
 That $48 billion is not an abstraction. It's money that should have fed families, paid school fees, built houses. It went to Brightwell's margins instead.
 
-DeFi has always promised to fix this. JupRemit is the first product that actually closes the loop — from a seafarer's JupCard salary wallet, through Jupiter's swap and lending infrastructure, to a family's Coins.ph peso balance — with $0 in fees and the possibility of arriving with more money than was sent.
+DeFi has always promised to fix this. JupRemit is the first product that actually closes the loop — from a seafarer's JupCard salary wallet, through Jupiter's swap and lending infrastructure, to a family's Coins.ph peso balance or M-Pesa account — with $0 in fees and the possibility of arriving with more money than was sent.
 
 ---
 

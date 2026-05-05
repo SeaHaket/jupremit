@@ -5,13 +5,13 @@ const USDC_DEVNET  = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
 export async function GET(req: NextRequest) {
   const wallet  = req.nextUrl.searchParams.get("wallet");
-  const network = req.nextUrl.searchParams.get("network") ?? process.env.NEXT_PUBLIC_NETWORK ?? "mainnet-beta";
+  const network = req.nextUrl.searchParams.get("network") ?? process.env.NETWORK ?? "mainnet-beta";
 
   if (!wallet) return NextResponse.json({ sol: 0, usdc: 0, error: "wallet required" }, { status: 400 });
 
   const isMainnet = network === "mainnet-beta" || network === "mainnet";
   const rpc  = isMainnet
-    ? (process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.mainnet-beta.solana.com")
+    ? (process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com")
     : "https://api.devnet.solana.com";
   const mint = isMainnet ? USDC_MAINNET : USDC_DEVNET;
 
