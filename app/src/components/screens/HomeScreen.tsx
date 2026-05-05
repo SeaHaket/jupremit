@@ -4,6 +4,16 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useRecipientStore } from "@/store/jupremit";
 
+// ─── Full-screen watermark background ────────────────────────────────────────
+const Wm = () => (
+  <img aria-hidden src="/jupit-logo.png" alt="" style={{
+    position: "absolute", inset: 0, width: "100%", height: "100%",
+    objectFit: "cover", objectPosition: "center",
+    opacity: 0.09, mixBlendMode: "screen" as const,
+    pointerEvents: "none", userSelect: "none" as const, zIndex: -1,
+  }} />
+);
+
 // ─── Logo with fallback chain ─────────────────────────────────────────────────
 const LOGO_SRCS = ["/logo.svg", "/logo.png", "/logo.jpg", "/logo.jpeg", "/logo.webp"];
 
@@ -263,7 +273,8 @@ export default function HomeScreen({ onSend, onVault }: Props) {
 
   // ─── Splash / not connected ────────────────────────────────────────────────
   if (!connected) return (
-    <div style={{ padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "82vh", gap: 14, textAlign: "center" }}>
+    <div style={{ position: "relative", zIndex: 0, overflow: "hidden", padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "82vh", gap: 14, textAlign: "center" }}>
+      <Wm />
       <AppLogo style={{ width: 104, height: 104, borderRadius: 28, marginBottom: 2, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }} />
       <div className="grad-green" style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>JupRemit</div>
       <div style={{ fontSize: 12, color: "var(--text3)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginTop: -6 }}>
@@ -288,7 +299,8 @@ export default function HomeScreen({ onSend, onVault }: Props) {
 
   // ─── Connected home ────────────────────────────────────────────────────────
   return (
-    <div style={{ paddingBottom: 32 }}>
+    <div style={{ position: "relative", zIndex: 0, paddingBottom: 32 }}>
+      <Wm />
 
       {/* Header bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px" }}>

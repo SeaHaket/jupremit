@@ -22,6 +22,16 @@ function msToCountdown(ms: number): string {
   return `${m}m remaining`;
 }
 
+// ─── Watermark background ─────────────────────────────────────────────────────
+const Wm = () => (
+  <img aria-hidden src="/jupit-logo.png" alt="" style={{
+    position: "absolute", inset: 0, width: "100%", height: "100%",
+    objectFit: "cover", objectPosition: "center",
+    opacity: 0.09, mixBlendMode: "screen" as const,
+    pointerEvents: "none", userSelect: "none" as const, zIndex: -1,
+  }} />
+);
+
 // ─── Back arrow icon ─────────────────────────────────────────────────────────
 function BackArrow() {
   return (
@@ -273,7 +283,8 @@ export default function SendScreen({ onBack }: Props) {
 
   // ─── Not connected ──────────────────────────────────────────────────────────
   if (!publicKey) return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Send Money" back={onBack} />
       <div style={{ padding: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
         <div style={{ width: 64, height: 64, borderRadius: 20, background: "var(--green-bg)", border: "1px solid var(--green-b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>↗</div>
@@ -286,7 +297,8 @@ export default function SendScreen({ onBack }: Props) {
 
   // ─── Error ──────────────────────────────────────────────────────────────────
   if (step === "error") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Send Money" back={() => setStep("review")} />
       <div style={{ padding: 24, textAlign: "center", paddingTop: 48 }}>
         <div style={{ fontSize: 56, marginBottom: 12 }}>❌</div>
@@ -300,7 +312,8 @@ export default function SendScreen({ onBack }: Props) {
 
   // ─── Executing ──────────────────────────────────────────────────────────────
   if (step === "executing") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Sending…" back={() => {}} />
       <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 64, textAlign: "center" }}>
         <div style={{ width: 52, height: 52, border: "3px solid var(--green)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
@@ -315,7 +328,8 @@ export default function SendScreen({ onBack }: Props) {
 
   // ─── Success ────────────────────────────────────────────────────────────────
   if (step === "success") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Done!" back={onBack} />
       <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 40, textAlign: "center" }}>
         <div style={{ fontSize: 64 }}>✅</div>
@@ -373,7 +387,8 @@ export default function SendScreen({ onBack }: Props) {
   if (step === "review") {
     const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 12 };
     return (
-      <div>
+      <div style={{ position: "relative", zIndex: 0 }}>
+        <Wm />
         <Hdr title="Review Transfer" back={() => setStep("amount")} />
         <div style={{ padding: 16 }}>
           <div style={{ textAlign: "center", padding: "12px 0 16px" }}>
@@ -474,7 +489,8 @@ export default function SendScreen({ onBack }: Props) {
   const accentBorder  = tab === "instant" ? "var(--green-b)" : "var(--purple-b)";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
+    <div style={{ position: "relative", zIndex: 0, display: "flex", flexDirection: "column", minHeight: "100%" }}>
+      <Wm />
       <Hdr title="Send Money" back={onBack} />
 
       <div style={{ padding: "12px 16px 0" }}>

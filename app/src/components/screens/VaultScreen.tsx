@@ -8,6 +8,15 @@ import { Numpad } from "../ui/Numpad";
 type VStep = "configure" | "confirm" | "active";
 interface Props { onBack: () => void; }
 
+const Wm = () => (
+  <img aria-hidden src="/jupit-logo.png" alt="" style={{
+    position: "absolute", inset: 0, width: "100%", height: "100%",
+    objectFit: "cover", objectPosition: "center",
+    opacity: 0.09, mixBlendMode: "screen" as const,
+    pointerEvents: "none", userSelect: "none" as const, zIndex: -1,
+  }} />
+);
+
 function BackArrow() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -75,7 +84,8 @@ export default function VaultScreen({ onBack }: Props) {
 
   // ─── Not connected ──────────────────────────────────────────────────────────
   if (!connected) return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Savings Vault" back={onBack} />
       <div style={{ padding: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
         <div style={{ width: 64, height: 64, borderRadius: 20, background: "var(--purple-bg)", border: "1px solid var(--purple-b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🔒</div>
@@ -90,7 +100,8 @@ export default function VaultScreen({ onBack }: Props) {
 
   // ─── Active vault ───────────────────────────────────────────────────────────
   if (step === "active") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Active Vault" back={onBack} />
       <div style={{ padding: 16 }}>
         <div style={{ background: "var(--purple-bg)", border: "1px solid var(--purple-b)", borderRadius: 16, padding: 16, marginBottom: 12 }}>
@@ -133,7 +144,8 @@ export default function VaultScreen({ onBack }: Props) {
 
   // ─── Confirm step ───────────────────────────────────────────────────────────
   if (step === "confirm") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <Hdr title="Confirm Vault" back={() => setStep("configure")} />
       <div style={{ padding: 16 }}>
         <div style={{ textAlign: "center", padding: "12px 0 20px" }}>
@@ -182,7 +194,8 @@ export default function VaultScreen({ onBack }: Props) {
   const dim = !usdcBalance || usdcBalance <= 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
+    <div style={{ position: "relative", zIndex: 0, display: "flex", flexDirection: "column", minHeight: "100%" }}>
+      <Wm />
       <Hdr title="Seafarer Savings Vault" back={onBack} />
 
       {/* APY header */}

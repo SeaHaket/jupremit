@@ -21,6 +21,15 @@ const COUNTRIES = [
 
 type AStep = "main" | "add";
 
+const Wm = () => (
+  <img aria-hidden src="/jupit-logo.png" alt="" style={{
+    position: "absolute", inset: 0, width: "100%", height: "100%",
+    objectFit: "cover", objectPosition: "center",
+    opacity: 0.09, mixBlendMode: "screen" as const,
+    pointerEvents: "none", userSelect: "none" as const, zIndex: -1,
+  }} />
+);
+
 export default function AccountScreen() {
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
@@ -55,7 +64,8 @@ export default function AccountScreen() {
 
   /* ── Add recipient screen ── */
   if (step === "add") return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--bg)", position: "sticky" as const, top: 0, zIndex: 10 }}>
         <button onClick={() => setStep("main")} style={{ width: 36, height: 36, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text2)" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -148,7 +158,8 @@ export default function AccountScreen() {
 
   /* ── Main screen ── */
   return (
-    <div>
+    <div style={{ position: "relative", zIndex: 0 }}>
+      <Wm />
       <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)" }}>Account</div>
       </div>
