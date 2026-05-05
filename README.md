@@ -1,6 +1,6 @@
 # JupRemit (PasaPay)
 
-> **The only remittance dApp that gives you yield instead of eating your hard-earned money.**
+> **The only remittance dApp that gives you yield instead of eating your hard earned money.**
 
 Built by a seafarer, for seafarers and OFWs everywhere.
 
