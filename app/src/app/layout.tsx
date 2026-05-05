@@ -27,7 +27,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <WalletContextProvider>
           <div className="phone-shell">
-            {children}
+            <img
+              aria-hidden
+              src="/jupit-logo.png"
+              alt=""
+              style={{
+                position: "absolute", inset: 0, width: "100%", height: "100%",
+                objectFit: "cover", objectPosition: "center",
+                opacity: 0.06, mixBlendMode: "screen",
+                pointerEvents: "none", userSelect: "none", zIndex: 0,
+              }}
+            />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              {children}
+            </div>
           </div>
         </WalletContextProvider>
       </body>
