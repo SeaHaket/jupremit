@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quoteLimiter, checkRateLimit } from "@/lib/ratelimit";
 
 const USDC   = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JUPUSD = "jupyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
@@ -11,10 +12,22 @@ function getRoute(routePlan: any[]): string {
   return labels.length ? labels.join(" + ") : "Jupiter Ultra";
 }
 
+const ALLOWED_CURRENCIES = new Set([
+  "PHP","IDR","VND","THB","MYR","SGD","ZAR","GBP","NGN","KES","INR","BRL","JPY","KRW","USD",
+]);
+
 export async function GET(req: NextRequest) {
-  const amount   = parseFloat(req.nextUrl.searchParams.get("amount")   ?? "100");
-  const currency = req.nextUrl.searchParams.get("currency") ?? "PHP";
-  const holdDays = parseInt(req.nextUrl.searchParams.get("holdDays")   ?? "3");
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const limited = await checkRateLimit(quoteLimiter, ip, "quote");
+  if (limited) return limited;
+
+  const amountRaw_ = parseFloat(req.nextUrl.searchParams.get("amount") ?? "100");
+  const amount     = Number.isFinite(amountRaw_) && amountRaw_ > 0 && amountRaw_ <= 1_000_000
+    ? amountRaw_ : 100;
+  const currency_  = req.nextUrl.searchParams.get("currency") ?? "PHP";
+  const currency   = ALLOWED_CURRENCIES.has(currency_) ? currency_ : "PHP";
+  const holdDays_  = parseInt(req.nextUrl.searchParams.get("holdDays") ?? "3");
+  const holdDays   = Number.isFinite(holdDays_) && holdDays_ >= 1 && holdDays_ <= 30 ? holdDays_ : 3;
   const amountRaw = Math.round(amount * 1_000_000);
 
   // Fallback FX rates

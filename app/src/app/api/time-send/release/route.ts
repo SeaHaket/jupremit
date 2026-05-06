@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { txLimiter, checkRateLimit } from "@/lib/ratelimit";
 
 const USDC    = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JUP_API = "https://api.jup.ag";
 const API_KEY = process.env.JUPITER_API_KEY ?? "";
 
+const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const MAX_AMOUNT    = 1_000_000 * 1_000_000;
+
 // Protocol fee: 0.2% of yield only
-const FEE_BPS = 20;
-const FEE_WALLET = "H6U2xdKTvUUNkbBWFwZdUJCCHSniPeChG4ZUE1zZHoxvQ";
+const FEE_BPS    = 20;
+const FEE_WALLET = process.env.FEE_WALLET ?? "H6U2xdKTvUUNkbBWFwZdUJCCHSniPeChG4ZUE1zZHoxvQ";
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const limited = await checkRateLimit(txLimiter, ip, "timesend:release");
+  if (limited) return limited;
+
   const { senderWallet, juicedAmountRaw, originalAmountRaw } = await req.json();
 
-  if (!senderWallet || !juicedAmountRaw)
-    return NextResponse.json({ error: "senderWallet and juicedAmountRaw required" }, { status: 400 });
+  if (!senderWallet || !SOL_PUBKEY_RE.test(senderWallet))
+    return NextResponse.json({ error: "Invalid senderWallet" }, { status: 400 });
+
+  const juicedNum = Number(juicedAmountRaw);
+  if (!juicedAmountRaw || !Number.isFinite(juicedNum) || juicedNum <= 0 || juicedNum > MAX_AMOUNT)
+    return NextResponse.json({ error: "Invalid juicedAmountRaw" }, { status: 400 });
 
   try {
     // Get current position to know exact USDC value of jlUSDC

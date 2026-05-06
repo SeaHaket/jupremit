@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readLimiter, checkRateLimit } from "@/lib/ratelimit";
 
 const USDC_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USDC_DEVNET  = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const ALLOWED_NETWORKS = new Set(["mainnet-beta", "mainnet", "devnet"]);
+const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const limited = await checkRateLimit(readLimiter, ip, "balance");
+  if (limited) return limited;
+
   const wallet  = req.nextUrl.searchParams.get("wallet");
   const network = req.nextUrl.searchParams.get("network") ?? process.env.NETWORK ?? "mainnet-beta";
 
-  if (!wallet) return NextResponse.json({ sol: 0, usdc: 0, error: "wallet required" }, { status: 400 });
+  if (!wallet || !SOL_PUBKEY_RE.test(wallet))
+    return NextResponse.json({ sol: 0, usdc: 0, error: "Invalid wallet" }, { status: 400 });
+
+  if (!ALLOWED_NETWORKS.has(network))
+    return NextResponse.json({ sol: 0, usdc: 0, error: "Invalid network" }, { status: 400 });
 
   const isMainnet = network === "mainnet-beta" || network === "mainnet";
   const rpc  = isMainnet

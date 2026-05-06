@@ -15,7 +15,10 @@ import { clusterApiUrl, Cluster } from "@solana/web3.js";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const NETWORK = (process.env.NEXT_PUBLIC_NETWORK ?? "mainnet-beta") as Cluster;
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? clusterApiUrl(NETWORK);
+// Use NEXT_PUBLIC_RPC_ENDPOINT for a key-less public endpoint only.
+// Never put a secret API key in NEXT_PUBLIC_* — it ships to the browser bundle.
+// Server-side routes use RPC_URL (non-public env var) for privileged RPC calls.
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_ENDPOINT ?? clusterApiUrl(NETWORK);
 
 export function WalletContextProvider({ children }: { children: React.ReactNode }) {
   const wallets = useMemo(() => [
