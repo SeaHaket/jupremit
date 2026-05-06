@@ -41,7 +41,9 @@ export async function GET(req: NextRequest) {
   // Fetch live FX
   let rate = RATES[currency] ?? 61.16;
   try {
-    const fxRes  = await fetch(`https://open.er-api.com/v6/latest/USD`);
+    const fxRes  = await fetch(`https://open.er-api.com/v6/latest/USD`, {
+      next: { revalidate: 3600 },
+    });
     const fxData = await fxRes.json();
     if (fxData.result === "success") rate = fxData.rates[currency] ?? rate;
   } catch {}

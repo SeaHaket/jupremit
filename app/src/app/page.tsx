@@ -2,10 +2,16 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 
-const HomeScreen    = dynamic(() => import("@/components/screens/HomeScreen"),    { ssr: false });
-const SendScreen    = dynamic(() => import("@/components/screens/SendScreen"),    { ssr: false });
-const VaultScreen   = dynamic(() => import("@/components/screens/VaultScreen"),   { ssr: false });
-const AccountScreen = dynamic(() => import("@/components/screens/AccountScreen"), { ssr: false });
+const Spinner = () => (
+  <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+    <div className="spin" style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--border2)", borderTopColor: "var(--green)" }} />
+  </div>
+);
+
+const HomeScreen    = dynamic(() => import("@/components/screens/HomeScreen"),    { ssr: false, loading: Spinner });
+const SendScreen    = dynamic(() => import("@/components/screens/SendScreen"),    { ssr: false, loading: Spinner });
+const VaultScreen   = dynamic(() => import("@/components/screens/VaultScreen"),   { ssr: false, loading: Spinner });
+const AccountScreen = dynamic(() => import("@/components/screens/AccountScreen"), { ssr: false, loading: Spinner });
 
 type Tab = "home" | "send" | "vault" | "account";
 

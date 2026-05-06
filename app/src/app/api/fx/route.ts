@@ -8,7 +8,9 @@ const FALLBACK: Record<string,number> = {
 export async function GET(req: NextRequest) {
   const currency = (req.nextUrl.searchParams.get("currency") ?? "PHP").toUpperCase();
   try {
-    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", {
+      next: { revalidate: 3600 }, // cache 1 hour server-side
+    });
     const data = await res.json();
     const rate = data.result === "success" ? data.rates[currency] : FALLBACK[currency] ?? 1;
     return NextResponse.json({ currency, rate, source: data.result === "success" ? "open.er-api.com" : "fallback" });
