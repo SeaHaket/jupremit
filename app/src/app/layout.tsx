@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { WalletContextProvider } from "@/components/ui/WalletProvider";
+
+const inter = Inter({
+  subsets:  ["latin"],
+  weight:   ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-inter",
+  display:  "swap",
+});
 
 export const metadata: Metadata = {
   title:       "JupRemit — Global DeFi Remittance on Solana",
@@ -23,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <WalletContextProvider>
           <div className="phone-shell">

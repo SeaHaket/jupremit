@@ -1,10 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
+
+  images: {
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [390, 750, 1080],
+    minimumCacheTTL: 86400,
+  },
+
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;
   },
-  // Required for Solana wallet adapter on Vercel edge runtime
+
   serverExternalPackages: ['@solana/web3.js'],
 };
 

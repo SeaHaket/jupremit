@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useAppStore } from "@/store/jupremit";
@@ -9,12 +10,13 @@ type VStep = "configure" | "confirm" | "active";
 interface Props { onBack: () => void; }
 
 const Wm = () => (
-  <img aria-hidden src="/jupit-logo.png" alt="" style={{
-    position: "absolute", inset: 0, width: "100%", height: "100%",
-    objectFit: "cover", objectPosition: "center",
-    opacity: 0.09, mixBlendMode: "screen" as const,
-    pointerEvents: "none", userSelect: "none" as const, zIndex: -1,
-  }} />
+  <div aria-hidden style={{
+    position: "absolute", inset: 0, zIndex: -1,
+    opacity: 0.09, mixBlendMode: "screen" as const, pointerEvents: "none",
+  }}>
+    <Image src="/jupit-logo.png" alt="" fill sizes="390px"
+      style={{ objectFit: "cover", objectPosition: "center" }} />
+  </div>
 );
 
 function BackArrow() {

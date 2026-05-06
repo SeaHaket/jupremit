@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
+/* Inter loaded via next/font/google in layout.tsx — self-hosted, no CDN round-trip */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -18,7 +18,7 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv05", "ss01";
