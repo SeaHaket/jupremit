@@ -26,8 +26,8 @@ export const COMPETITORS = {
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   PHP: "₱", IDR: "Rp", VND: "₫", THB: "฿", MYR: "RM",
   SGD: "S$", KHR: "₭", MMK: "K", JPY: "¥", KRW: "₩",
-  AUD: "A$", GBP: "£", NGN: "₦", KES: "KSh", INR: "₹",
-  BRL: "R$", USD: "$",
+  AUD: "A$", GBP: "£", ZAR: "R", NGN: "₦", KES: "KSh",
+  INR: "₹", BRL: "R$", USD: "$",
 };
 
 // ─── Offramp providers by country ────────────────────────────────────────────
@@ -104,6 +104,11 @@ export const PROVIDERS_BY_COUNTRY: Record<string, Provider[]> = {
     { id: "venmo",  name: "Venmo",    label: "Venmo",  desc: "USDC → USD Venmo" },
     { id: "zelle",  name: "Zelle",    label: "Zelle",  desc: "USDC → USD Zelle instant" },
   ],
+  ZA: [
+    { id: "standard_bank", name: "Standard Bank", label: "Standard Bank", desc: "USDC → ZAR via Standard Bank" },
+    { id: "fnb",           name: "FNB",           label: "FNB",           desc: "USDC → ZAR via FNB" },
+    { id: "capitec",       name: "Capitec",       label: "Capitec",       desc: "USDC → ZAR via Capitec" },
+  ],
   NG: [
     { id: "opay",        name: "OPay",        label: "OPay",       desc: "USDC → NGN via OPay" },
     { id: "flutterwave", name: "Flutterwave", label: "Flutterwave",desc: "USDC → NGN bank" },
@@ -152,6 +157,6 @@ export const FALLBACK_RATES: Record<string, number> = {
   PHP: 61.16, IDR: 16350, VND: 25400, THB: 34.2,
   MYR: 4.48,  SGD: 1.34,  KHR: 4080,  MMK: 2100,
   JPY: 143.5, KRW: 1370,  AUD: 1.58,  GBP: 0.79,
-  NGN: 1620,  KES: 129,   INR: 83.4,  BRL: 5.2,
-  USD: 1,
+  ZAR: 18.5,  NGN: 1620,  KES: 129,   INR: 83.4,
+  BRL: 5.2,   USD: 1,
 };

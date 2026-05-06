@@ -87,7 +87,7 @@ export async function getLendTokens(): Promise<LendToken[]> {
     return [
       {
         mint:          MINTS.JUPUSD,
-        fTokenMint:    "jlUSDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        fTokenMint:    "",
         symbol:        "JupUSD",
         decimals:      6,
         supplyApy:     4.5,
@@ -339,18 +339,16 @@ export async function quoteInstantBoost(
     };
   } catch {
     // Fallback to observed rates from screenshots
-    const step1Out  = sendAmountUsdc * 0.99963;  // observed: 100→99.963732
-    const step2Out  = step1Out * 1.0004;          // observed: 99.96→100.005
-    const netGain   = step2Out - sendAmountUsdc - 0.003;
-    const order1: any = {}; // placeholder to satisfy type, real route info not available in fallback
-    const order2: any = {};
+    const step1Out = sendAmountUsdc * 0.99963;  // observed: 100→99.963732
+    const step2Out = step1Out * 1.0004;          // observed: 99.96→100.005
+    const netGain  = step2Out - sendAmountUsdc - 0.003;
     return {
       step1Out,
       step2Out,
       netGainUsdc:     netGain,
       netGainBps:      (netGain / sendAmountUsdc) * 10_000,
-      step1Route:      (order1.routePlan ?? []).map((r: any) => r?.swapInfo?.label).filter(Boolean).join(" + ") || "Jupiter Ultra",
-      step2Route:      (order2.routePlan ?? []).map((r: any) => r?.swapInfo?.label).filter(Boolean).join(" + ") || "Jupiter Ultra",
+      step1Route:      "Jupiter Ultra",
+      step2Route:      "Jupiter Ultra",
       isPositive:      netGain > 0,
       localEquivalent: Math.round(step2Out * fxRate),
     };

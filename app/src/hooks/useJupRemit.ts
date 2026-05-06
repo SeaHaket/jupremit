@@ -256,7 +256,7 @@ export function useSendFlow() {
         const binary = signed.serialize();
 
         const { value: bh } = await connection.getLatestBlockhashAndContext({ commitment: "finalized" });
-        const signature     = await connection.sendRawTransaction(binary, { maxRetries: 0, skipPreflight: true });
+        const signature     = await connection.sendRawTransaction(binary, { maxRetries: 3, skipPreflight: true });
 
         const confirmation = await connection.confirmTransaction(
           { signature, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight },

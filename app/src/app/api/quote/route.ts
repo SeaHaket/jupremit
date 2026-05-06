@@ -20,8 +20,9 @@ export async function GET(req: NextRequest) {
   // Fallback FX rates
   const RATES: Record<string, number> = {
     PHP: 61.16, IDR: 16350, VND: 25400, THB: 34.2,
-    MYR: 4.48,  SGD: 1.34,  GBP: 0.79,  USD: 1,
+    MYR: 4.48,  SGD: 1.34,  ZAR: 18.5,  GBP: 0.79,
     NGN: 1620,  KES: 129,   INR: 83.4,  BRL: 5.2,
+    JPY: 143.5, KRW: 1370,  USD: 1,
   };
 
   // Fetch live FX
@@ -66,8 +67,8 @@ export async function GET(req: NextRequest) {
     const q1 = await q1Res.json();
     const q2 = await q2Res.json();
 
-    if (q1.outAmount)   step1Out   = parseInt(q1.outAmount);
-    if (q2.outAmount)   step2Out   = parseInt(q2.outAmount);
+    if (q1.outAmount)   step1Out   = Number(q1.outAmount);
+    if (q2.outAmount)   step2Out   = Number(q2.outAmount);
     if (q1.routePlan)   step1Route = getRoute(q1.routePlan);
     if (q2.routePlan)   step2Route = getRoute(q2.routePlan);
   } catch {}
@@ -77,7 +78,11 @@ export async function GET(req: NextRequest) {
   const step2OutUsdc  = step2Out / 1_000_000;
   const transitNet    = amount * (apy / 100) * (holdDays / 365) - 0.006;
 
-  const sym = currency === "PHP" ? "₱" : (currency === "GBP" ? "£" : "$");
+  const SYMS: Record<string,string> = {
+    PHP:"₱",IDR:"Rp",VND:"₫",THB:"฿",MYR:"RM",SGD:"S$",ZAR:"R",
+    NGN:"₦",KES:"KSh",INR:"₹",BRL:"R$",GBP:"£",JPY:"¥",KRW:"₩",USD:"$",
+  };
+  const sym = SYMS[currency] ?? "$";
 
   return NextResponse.json({
     instantBoost: {

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Evaluate if boost is net positive after fees ──────────────────────────
-    const outAmount  = parseInt(boostData?.outAmount ?? "0");
+    const outAmount  = Number(boostData?.outAmount ?? 0);
     const netGainRaw = outAmount - amountRaw - ESTIMATED_FEE_RAW;
     const isNetPositive = boostData?.transaction && outAmount > 0 && netGainRaw > 0;
 
