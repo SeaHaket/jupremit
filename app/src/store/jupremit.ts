@@ -126,6 +126,40 @@ export const useTimedSendStore = create<TimedSendStore>()(
   )
 );
 
+// ─── Transaction history store ────────────────────────────────────────────────
+
+export interface TxRecord {
+  id: string;
+  type: "instant_send" | "timed_deposit" | "timed_release";
+  amountUsdc: number;
+  txSig: string;
+  ts: number;
+  toName?: string;
+  toWallet?: string;
+  strategy?: "instant_boost" | "direct";
+  yieldUsdc?: number;
+}
+
+interface TxHistoryStore {
+  txHistory: TxRecord[];
+  addTx: (tx: Omit<TxRecord, "id">) => void;
+  clearHistory: () => void;
+}
+
+export const useTxHistoryStore = create<TxHistoryStore>()(
+  persist(
+    (set) => ({
+      txHistory: [],
+      addTx: (tx) => {
+        const newTx: TxRecord = { ...tx, id: nanoid(8) };
+        set((s) => ({ txHistory: [newTx, ...s.txHistory].slice(0, 100) }));
+      },
+      clearHistory: () => set({ txHistory: [] }),
+    }),
+    { name: "jupremit-tx-history-v1" }
+  )
+);
+
 // ─── App store ────────────────────────────────────────────────────────────────
 
 interface AppState {

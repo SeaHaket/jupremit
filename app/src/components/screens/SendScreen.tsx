@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
-import { useRecipientStore, useAppStore, useTimedSendStore } from "@/store/jupremit";
+import { useRecipientStore, useAppStore, useTimedSendStore, useTxHistoryStore } from "@/store/jupremit";
 import { Numpad } from "../ui/Numpad";
 import { COUNTRIES, PROVIDERS_BY_COUNTRY, CURRENCY_SYMBOLS } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -91,16 +91,22 @@ export default function SendScreen({ onBack }: Props) {
   const { publicKey, signTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
-  const { defaultRecipient } = useRecipientStore();
+  const { defaultRecipient, addRecipient, recipients } = useRecipientStore();
   const { sendAmount, setSendAmount, holdDays, setHoldDays, juicedApy, setJuicedApy } = useAppStore();
   const { timedSends, addTimedSend, markReleased, markFailed, removeTimedSend } = useTimedSendStore();
+  const { addTx } = useTxHistoryStore();
 
   const [tab, setTab]               = useState<Tab>("instant");
   const [step, setStep]             = useState<Step>("amount");
   const [input, setInput]           = useState(sendAmount > 0 ? sendAmount.toString() : "0");
   const [displayCountryCode, setDisplayCountryCode] = useState(defaultRecipient?.country ?? "PH");
-  const [showScanner, setShowScanner] = useState(false);
+  const [showScanner, setShowScanner]     = useState(false);
   const [scannedWallet, setScannedWallet] = useState<string | null>(null);
+  const [showSaveForm, setShowSaveForm]   = useState(false);
+  const [saveName, setSaveName]           = useState("");
+  const [saveCountryCode, setSaveCountryCode] = useState("PH");
+  const [saveProvider, setSaveProvider]   = useState("");
+  const [addressSaved, setAddressSaved]   = useState(false);
   const [quote, setQuote]           = useState<any>(null);
   const [sendResult, setSendResult] = useState<any>(null);
   const [loading, setLoading]       = useState(false);
@@ -140,6 +146,24 @@ export default function SendScreen({ onBack }: Props) {
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  function handleSaveAddress() {
+    if (!scannedWallet || !saveName.trim()) return;
+    const c = COUNTRIES.find(x => x.code === saveCountryCode) ?? COUNTRIES[0];
+    addRecipient({
+      name: saveName.trim(),
+      country: saveCountryCode,
+      currency: c.currency,
+      provider: saveProvider || "USDC wallet",
+      wallet: scannedWallet,
+      flag: c.flag,
+      isDefault: recipients.length === 0,
+    });
+    setAddressSaved(true);
+    setShowSaveForm(false);
+    setSaveName("");
+    setTimeout(() => setAddressSaved(false), 2500);
+  }
 
   function handleNumpad(v: string) {
     setInput(v);
@@ -219,11 +243,13 @@ export default function SendScreen({ onBack }: Props) {
         setExecStatus("Instant Boost active — approve in wallet…");
         const sig = await signAndSend(data.tx);
         setTxSigs([sig]);
+        addTx({ type: "instant_send", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet, strategy: "instant_boost" });
       } else {
         setExecStatus("Sending USDC directly — approve in wallet…");
         const recipientPub = new PublicKey(effectiveWallet);
         const sig = await doDirectTransfer(publicKey, recipientPub, data.amountRaw);
         setTxSigs([sig]);
+        addTx({ type: "instant_send", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet, strategy: "direct" });
       }
       setStep("success");
     } catch (e: any) {
@@ -255,6 +281,7 @@ export default function SendScreen({ onBack }: Props) {
       setExecStatus("Approve the Jupiter Lend deposit in your wallet…");
       const sig = await signAndSend(data.transaction);
       setTxSigs([sig]);
+      addTx({ type: "timed_deposit", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet });
 
       const matureAt = Date.now() + holdDays * 86_400_000;
       addTimedSend({
@@ -303,6 +330,7 @@ export default function SendScreen({ onBack }: Props) {
       const withdrawSig  = await signAndSend(data.transaction);
       const recipientPub = new PublicKey(ts.recipientWallet);
       const transferSig  = await doDirectTransfer(publicKey, recipientPub, data.senderGetsRaw);
+      addTx({ type: "timed_release", amountUsdc: ts.amountUsdc, txSig: transferSig, ts: Date.now(), toName: ts.recipientName, toWallet: ts.recipientWallet, yieldUsdc: data.yieldUsdc ?? 0 });
 
       markReleased(tsId, transferSig, data.yieldUsdc ?? 0);
     } catch (e: any) {
@@ -583,18 +611,58 @@ export default function SendScreen({ onBack }: Props) {
 
           {/* Scanned wallet chip — shown when user scanned a QR */}
           {scannedWallet ? (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--green-bg)", border: "1px solid var(--green-b)", borderRadius: 10 }}>
-              <span style={{ fontSize: 16 }}>🔍</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", marginBottom: 1 }}>Scanned wallet</div>
-                <div style={{ fontSize: 10, color: "var(--text3)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {scannedWallet}
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--green-bg)", border: "1px solid var(--green-b)", borderRadius: addressSaved || showSaveForm ? "10px 10px 0 0" : 10 }}>
+                <span style={{ fontSize: 16 }}>🔍</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", marginBottom: 1 }}>Scanned wallet</div>
+                  <div style={{ fontSize: 10, color: "var(--text3)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {scannedWallet}
+                  </div>
                 </div>
+                {addressSaved ? (
+                  <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700 }}>✅ Saved</span>
+                ) : (
+                  <button onClick={() => { setShowSaveForm(f => !f); setSaveName(""); }} style={{
+                    fontSize: 11, fontWeight: 700, color: "var(--green)", background: "none",
+                    border: "1px solid var(--green-b)", borderRadius: 8, cursor: "pointer",
+                    padding: "4px 10px", fontFamily: "inherit",
+                  }}>💾 Save</button>
+                )}
+                <button onClick={() => { setScannedWallet(null); setShowSaveForm(false); setAddressSaved(false); }} style={{
+                  fontSize: 12, color: "var(--text3)", background: "none", border: "none",
+                  cursor: "pointer", padding: "4px 6px", lineHeight: 1,
+                }}>✕</button>
               </div>
-              <button onClick={() => setScannedWallet(null)} style={{
-                fontSize: 12, color: "var(--text3)", background: "none", border: "none",
-                cursor: "pointer", padding: "4px 6px", lineHeight: 1,
-              }}>✕</button>
+
+              {/* Inline save form */}
+              {showSaveForm && (
+                <div style={{ padding: "12px 12px 14px", background: "var(--surface2)", border: "1px solid var(--green-b)", borderTop: "none", borderRadius: "0 0 10px 10px", display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                  <input
+                    value={saveName} onChange={e => setSaveName(e.target.value)}
+                    placeholder="Name (e.g. Maria Santos)"
+                    className="input-field" style={{ fontSize: 13 }}
+                  />
+                  <div style={{ position: "relative" as const }}>
+                    <select value={saveCountryCode} onChange={e => { setSaveCountryCode(e.target.value); setSaveProvider(""); }} style={{
+                      width: "100%", background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 10,
+                      padding: "10px 36px 10px 12px", fontSize: 13, fontWeight: 600, color: "var(--text)",
+                      appearance: "none" as any, WebkitAppearance: "none" as any, fontFamily: "inherit", cursor: "pointer", outline: "none",
+                    }}>
+                      {COUNTRIES.filter(c => c.code !== "OTHER").map(c => (
+                        <option key={c.code} value={c.code}>{c.flag}  {c.name}</option>
+                      ))}
+                    </select>
+                    <svg style={{ position: "absolute" as const, right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" as const, color: "var(--text3)" }}
+                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </div>
+                  <button onClick={handleSaveAddress} disabled={!saveName.trim()} className="btn-primary" style={{ padding: "11px 16px", fontSize: 13 }}>
+                    Save to address book →
+                  </button>
+                </div>
+              )}
             </div>
           ) : defaultRecipient ? (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 10 }}>

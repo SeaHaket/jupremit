@@ -106,17 +106,26 @@ export default function HomeScreen({ onSend, onVault }: Props) {
   const { setVisible } = useWalletModal();
   const { defaultRecipient } = useRecipientStore();
 
-  const [apy, setApy]         = useState(4.5);
-  const [usdc, setUsdc]       = useState(0);
-  const [sol, setSol]         = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [apy, setApy]                   = useState(4.5);
+  const [usdc, setUsdc]                 = useState(0);
+  const [sol, setSol]                   = useState(0);
+  const [loading, setLoading]           = useState(false);
+  const [selectedShort, setSelectedShort] = useState("PH");
+  const [fxRate, setFxRate]             = useState<number | null>(null);
 
-  const country = COUNTRIES[0]; // Philippines default for competitor comparison
+  const country = COUNTRIES.find(c => c.short === selectedShort) ?? COUNTRIES[0];
 
   // APY — fetch once
   useEffect(() => {
     fetch("/api/apy").then(r => r.json()).then(d => setApy(d.apy ?? 4.5)).catch(() => {});
   }, []);
+
+  // Live FX — refetch when country changes
+  useEffect(() => {
+    setFxRate(null);
+    fetch(`/api/fx?currency=${country.currency}`)
+      .then(r => r.json()).then(d => setFxRate(d.rate ?? null)).catch(() => {});
+  }, [country.currency]);
 
   // Balance — refetch on wallet change
   useEffect(() => {
@@ -131,6 +140,8 @@ export default function HomeScreen({ onSend, onVault }: Props) {
 
   const refreshAll = useCallback(() => {
     fetch("/api/apy").then(r => r.json()).then(d => setApy(d.apy ?? 4.5)).catch(() => {});
+    fetch(`/api/fx?currency=${country.currency}`)
+      .then(r => r.json()).then(d => setFxRate(d.rate ?? null)).catch(() => {});
     if (publicKey) {
       setLoading(true);
       fetch(`/api/balance?wallet=${publicKey.toBase58()}&network=mainnet-beta`)
@@ -139,7 +150,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-  }, [publicKey]);
+  }, [publicKey, country.currency]);
 
   const addr  = publicKey?.toBase58() ?? "";
   const short = addr ? addr.slice(0, 6) + "…" + addr.slice(-4) : "";
@@ -149,7 +160,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
   //   Sender pays:    $100 + fee  (fee charged ON TOP of send amount)
   //   Recipient gets: 100 * midRate * (1 - markup)  (exchange rate marked down)
   // Total local-currency savings = rate gap + fee equivalent in local currency
-  const rate       = country.fallbackRate;
+  const rate       = fxRate ?? country.fallbackRate;
   const pasapayAmt = Math.round(100 * rate);
   const compRows = country.competitors.map(c => {
     const theirAmt   = Math.round(100 * rate * (1 - c.markup));
@@ -294,8 +305,40 @@ export default function HomeScreen({ onSend, onVault }: Props) {
           </button>
         </div>
 
+        {/* Country dropdown */}
+        <div style={{ marginBottom: 12 }}>
+          <div className="label-xs">Recipient Country</div>
+          <div style={{ position: "relative" as const }}>
+            <select
+              value={selectedShort}
+              onChange={e => setSelectedShort(e.target.value)}
+              style={{
+                width: "100%", background: "var(--surface)",
+                border: "1px solid var(--border2)", borderRadius: 14,
+                padding: "13px 42px 13px 14px",
+                fontSize: 15, fontWeight: 600, color: "var(--text)",
+                appearance: "none" as any, WebkitAppearance: "none" as any,
+                fontFamily: "inherit", cursor: "pointer", outline: "none",
+              }}
+            >
+              {COUNTRIES.map(c => (
+                <option key={c.short} value={c.short}>{c.flag}  {c.name} ({c.currency})</option>
+              ))}
+            </select>
+            <svg style={{ position: "absolute" as const, right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" as const, color: "var(--text3)" }}
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
+
         {/* Competitor comparison */}
-        <div className="label-xs">Sending $100 → {country.currency}</div>
+        <div className="label-xs">
+          Sending $100 → {country.currency}
+          {fxRate && <span style={{ marginLeft: 6, fontWeight: 500, color: "var(--text3)", textTransform: "none", letterSpacing: 0 }}>
+            · live rate {country.symbol}{fxRate.toFixed(2)}
+          </span>}
+        </div>
         <div style={card}>
           {/* Column headers */}
           <div style={{ display: "flex", padding: "2px 0 8px", borderBottom: "1px solid var(--border)" }}>

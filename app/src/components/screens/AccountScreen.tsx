@@ -3,7 +3,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useRecipientStore } from "@/store/jupremit";
+import { useRecipientStore, useTxHistoryStore } from "@/store/jupremit";
 
 const COUNTRIES = [
   { flag: "🇵🇭", name: "Philippines", currency: "PHP", providers: ["Coins.ph", "GCash", "Maya"] },
@@ -19,6 +19,15 @@ const COUNTRIES = [
   { flag: "🇮🇳", name: "India",       currency: "INR", providers: ["UPI", "PhonePe"] },
   { flag: "🇧🇷", name: "Brazil",      currency: "BRL", providers: ["Pix", "Nubank"] },
 ];
+
+function timeAgo(ts: number): string {
+  const d = Date.now() - ts;
+  if (d < 60_000) return "just now";
+  if (d < 3_600_000) return `${Math.floor(d / 60_000)}m ago`;
+  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)}h ago`;
+  if (d < 7 * 86_400_000) return `${Math.floor(d / 86_400_000)}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
 
 type AStep = "main" | "add";
 
@@ -36,13 +45,16 @@ export default function AccountScreen() {
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const { recipients, addRecipient, removeRecipient, setDefault } = useRecipientStore();
+  const { txHistory, clearHistory } = useTxHistoryStore();
 
   const [step, setStep]               = useState<AStep>("main");
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [selectedCountryCode, setSelectedCountryCode] = useState(COUNTRIES[0].name);
   const [selectedProvider, setSelectedProvider] = useState(COUNTRIES[0].providers[0]);
   const [name, setName]               = useState("");
   const [wallet, setWallet]           = useState("");
   const [saved, setSaved]             = useState(false);
+
+  const selectedCountry = COUNTRIES.find(c => c.name === selectedCountryCode) ?? COUNTRIES[0];
 
   const addr  = publicKey?.toBase58() ?? "";
   const short = addr ? addr.slice(0, 6) + "..." + addr.slice(-4) : "";
@@ -95,27 +107,26 @@ export default function AccountScreen() {
         />
 
         {/* Country */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Country</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-          {COUNTRIES.map(c => (
-            <button
-              key={c.name}
-              onClick={() => { setSelectedCountry(c); setSelectedProvider(c.providers[0]); }}
-              style={{
-                padding: "10px 12px", borderRadius: 12,
-                border: `1px solid ${selectedCountry.name === c.name ? "var(--green)" : "var(--border)"}`,
-                background: selectedCountry.name === c.name ? "var(--green-bg)" : "var(--surface2)",
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                textAlign: "left" as const, fontFamily: "inherit",
-              }}
-            >
-              <span style={{ fontSize: 20 }}>{c.flag}</span>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{c.name}</div>
-                <div style={{ fontSize: 9, color: "var(--text3)" }}>{c.currency}</div>
-              </div>
-            </button>
-          ))}
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Country</div>
+        <div style={{ position: "relative" as const, marginBottom: 16 }}>
+          <select
+            value={selectedCountryCode}
+            onChange={e => { setSelectedCountryCode(e.target.value); setSelectedProvider(COUNTRIES.find(c => c.name === e.target.value)?.providers[0] ?? ""); }}
+            style={{
+              width: "100%", background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 14,
+              padding: "13px 42px 13px 14px", fontSize: 15, fontWeight: 600, color: "var(--text)",
+              appearance: "none" as any, WebkitAppearance: "none" as any,
+              fontFamily: "inherit", cursor: "pointer", outline: "none",
+            }}
+          >
+            {COUNTRIES.map(c => (
+              <option key={c.name} value={c.name}>{c.flag}  {c.name} ({c.currency})</option>
+            ))}
+          </select>
+          <svg style={{ position: "absolute" as const, right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" as const, color: "var(--text3)" }}
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
 
         {/* Provider */}
@@ -241,8 +252,61 @@ export default function AccountScreen() {
           ))
         )}
 
+        {/* Transaction history */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, marginTop: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+            Transaction History ({txHistory.length})
+          </div>
+          {txHistory.length > 0 && (
+            <button onClick={() => { if (confirm("Clear all transaction history?")) clearHistory(); }}
+              style={{ fontSize: 10, color: "var(--text3)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        {txHistory.length === 0 ? (
+          <div style={{ ...card, textAlign: "center", padding: "24px 16px", marginBottom: 12 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>No transactions yet</div>
+            <div style={{ fontSize: 11, color: "var(--text3)" }}>Your send and vault activity will appear here</div>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 12 }}>
+            {txHistory.slice(0, 20).map(tx => {
+              const typeLabel = tx.type === "instant_send" ? "Sent" : tx.type === "timed_deposit" ? "Deposited" : "Released";
+              const typeColor = tx.type === "instant_send" ? "var(--green)" : tx.type === "timed_deposit" ? "var(--purple)" : "var(--teal)";
+              const typeIcon  = tx.type === "instant_send" ? "↗" : tx.type === "timed_deposit" ? "🔒" : "🔓";
+              return (
+                <div key={tx.id} style={{ ...card, display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 12, background: "var(--surface2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                    {typeIcon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: typeColor }}>{typeLabel}</span>
+                      {tx.strategy === "instant_boost" && <span style={{ fontSize: 8, fontWeight: 700, background: "var(--green-bg)", color: "var(--green)", padding: "1px 6px", borderRadius: 10, border: "1px solid var(--green-b)" }}>⚡ BOOST</span>}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {tx.toName ?? tx.toWallet?.slice(0, 12) + "…"} · {timeAgo(tx.ts)}
+                    </div>
+                    {tx.yieldUsdc !== undefined && tx.yieldUsdc > 0 && (
+                      <div style={{ fontSize: 10, color: "var(--green)", marginTop: 1 }}>+${tx.yieldUsdc.toFixed(4)} yield</div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: typeColor }}>${tx.amountUsdc.toFixed(2)}</div>
+                    <a href={`https://solscan.io/tx/${tx.txSig}`} target="_blank" rel="noreferrer"
+                      style={{ fontSize: 9, color: "var(--text3)", textDecoration: "none" }}>Solscan ↗</a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Network info */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8, marginTop: 8 }}>Network</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8, marginTop: 4 }}>Network</div>
         <div style={{ ...card, background: "var(--surface2)" }}>
           {[
             ["Network", "Solana Mainnet"],
