@@ -621,9 +621,6 @@ export default function SendScreen({ onBack }: Props) {
 
       {/* ── Numpad + percentage column ── */}
       <div style={{ padding: "16px 16px 12px", display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <Numpad value={input} onChange={handleNumpad} />
-        </div>
         <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, width: 56 }}>
           {([
             { label: "25%", pct: 0.25 },
@@ -654,6 +651,9 @@ export default function SendScreen({ onBack }: Props) {
               </button>
             );
           })}
+        </div>
+        <div style={{ flex: 1 }}>
+          <Numpad value={input} onChange={handleNumpad} />
         </div>
       </div>
 

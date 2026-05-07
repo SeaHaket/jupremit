@@ -98,91 +98,6 @@ function VaultIcon({ size = 22, color = "currentColor" }: { size?: number; color
   );
 }
 
-// ─── Country selector — compact pill, expands to grid on tap ─────────────────
-function CountrySelector({
-  selected, onSelect, label = "Sending to",
-}: { selected: number; onSelect: (i: number) => void; label?: string }) {
-  const [open, setOpen] = useState(false);
-  const current = COUNTRIES[selected];
-  return (
-    <div style={{ marginBottom: 12 }}>
-      {/* Collapsed trigger */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "10px 14px", borderRadius: 14, cursor: "pointer", fontFamily: "inherit",
-          border: `1.5px solid ${open ? "var(--green-b)" : "var(--border)"}`,
-          background: open ? "var(--green-bg)" : "var(--surface)",
-          transition: "all 0.15s",
-        }}
-      >
-        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          {label}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Mini flag strip — show all flags at tiny size */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {COUNTRIES.map((c, i) => (
-              <span
-                key={c.short}
-                style={{
-                  fontSize: i === selected ? 20 : 13,
-                  lineHeight: 1,
-                  color: "#FF8C00",
-                  fontWeight: 800,
-                  opacity: i === selected ? 1 : 0.55,
-                  transition: "all 0.15s",
-                }}
-              >{c.flag}</span>
-            ))}
-          </div>
-          {/* Selected label */}
-          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--green)", marginLeft: 4 }}>
-            {current.currency}
-          </span>
-          {/* Chevron */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            style={{ color: "var(--text3)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </button>
-
-      {/* Expanded grid */}
-      {open && (
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7 }}>
-          {COUNTRIES.map((c, i) => {
-            const active = selected === i;
-            return (
-              <button
-                key={c.short}
-                onClick={() => { onSelect(i); setOpen(false); }}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                  padding: "10px 4px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit",
-                  border: `1.5px solid ${active ? "var(--green-b)" : "var(--border)"}`,
-                  background: active ? "var(--green-bg)" : "var(--surface)",
-                  transition: "all 0.12s",
-                }}
-              >
-                <span style={{ fontSize: 24, lineHeight: 1.1, color: "#FF8C00", fontWeight: 800 }}>{c.flag}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: active ? "var(--green)" : "#FF8C00" }}>
-                  {c.name.length > 9 ? c.short : c.name}
-                </span>
-                <span style={{ fontSize: 8, fontWeight: 600, color: active ? "var(--green-d)" : "#FF8C00", opacity: active ? 1 : 0.7 }}>
-                  {c.currency}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 interface Props { onSend: () => void; onVault: () => void; }
 
@@ -192,13 +107,11 @@ export default function HomeScreen({ onSend, onVault }: Props) {
   const { defaultRecipient } = useRecipientStore();
 
   const [apy, setApy]         = useState(4.5);
-  const [fxRate, setFxRate]   = useState(COUNTRIES[0].fallbackRate);
   const [usdc, setUsdc]       = useState(0);
   const [sol, setSol]         = useState(0);
   const [loading, setLoading] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState(0);
 
-  const country = COUNTRIES[selectedIdx];
+  const country = COUNTRIES[0]; // Philippines default for competitor comparison
 
   // APY — fetch once
   useEffect(() => {
@@ -216,19 +129,8 @@ export default function HomeScreen({ onSend, onVault }: Props) {
       .finally(() => setLoading(false));
   }, [publicKey]);
 
-  // FX rate — refetch when country changes
-  useEffect(() => {
-    setFxRate(country.fallbackRate);
-    fetch(`/api/fx?currency=${country.currency}`)
-      .then(r => r.json())
-      .then(d => setFxRate(d.rate ?? country.fallbackRate))
-      .catch(() => {});
-  }, [selectedIdx]);
-
   const refreshAll = useCallback(() => {
     fetch("/api/apy").then(r => r.json()).then(d => setApy(d.apy ?? 4.5)).catch(() => {});
-    fetch(`/api/fx?currency=${country.currency}`).then(r => r.json())
-      .then(d => setFxRate(d.rate ?? country.fallbackRate)).catch(() => {});
     if (publicKey) {
       setLoading(true);
       fetch(`/api/balance?wallet=${publicKey.toBase58()}&network=mainnet-beta`)
@@ -237,7 +139,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-  }, [publicKey, selectedIdx]);
+  }, [publicKey]);
 
   const addr  = publicKey?.toBase58() ?? "";
   const short = addr ? addr.slice(0, 6) + "…" + addr.slice(-4) : "";
@@ -247,11 +149,12 @@ export default function HomeScreen({ onSend, onVault }: Props) {
   //   Sender pays:    $100 + fee  (fee charged ON TOP of send amount)
   //   Recipient gets: 100 * midRate * (1 - markup)  (exchange rate marked down)
   // Total local-currency savings = rate gap + fee equivalent in local currency
-  const pasapayAmt = Math.round(100 * fxRate);
+  const rate       = country.fallbackRate;
+  const pasapayAmt = Math.round(100 * rate);
   const compRows = country.competitors.map(c => {
-    const theirAmt   = Math.round(100 * fxRate * (1 - c.markup));
-    const rateGain   = pasapayAmt - theirAmt;            // extra family gets from better rate
-    const feeInLocal = Math.round(c.fee * fxRate);       // fee converted to local currency
+    const theirAmt   = Math.round(100 * rate * (1 - c.markup));
+    const rateGain   = pasapayAmt - theirAmt;
+    const feeInLocal = Math.round(c.fee * rate);
     const totalSave  = rateGain + feeInLocal;            // total local-currency advantage
     return {
       name:        c.name,
@@ -337,11 +240,6 @@ export default function HomeScreen({ onSend, onVault }: Props) {
                   {usdc.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text3)", fontWeight: 700, letterSpacing: "0.08em", marginTop: 5 }}>USDC</div>
-                <div style={{ fontSize: 14, color: "var(--text2)", marginTop: 8, fontWeight: 600 }}>
-                  ≈ {country.symbol}{Math.round(usdc * fxRate).toLocaleString()}
-                  <span style={{ fontSize: 11, color: "var(--text3)", marginLeft: 4 }}>{country.currency}</span>
-                  &nbsp;<span className="badge-est">est.</span>
-                </div>
                 {sol > 0 && (
                   <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 5 }}>{sol.toFixed(4)} SOL for gas</div>
                 )}
@@ -396,10 +294,7 @@ export default function HomeScreen({ onSend, onVault }: Props) {
           </button>
         </div>
 
-        {/* Country selector */}
-        <CountrySelector selected={selectedIdx} onSelect={setSelectedIdx} />
-
-        {/* Competitor comparison — dynamic per country */}
+        {/* Competitor comparison */}
         <div className="label-xs">Sending $100 → {country.currency}</div>
         <div style={card}>
           {/* Column headers */}

@@ -242,11 +242,14 @@ export default function VaultScreen({ onBack }: Props) {
           </div>
         )}
 
-        {/* Percentage presets — from wallet balance */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
+      </div>
+
+      {/* ── Numpad + percentage column ── */}
+      <div style={{ padding: "14px 16px 12px", display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, width: 56 }}>
           {([
             { label: "25%", pct: 0.25 },
-            { label: "½",   pct: 0.50 },
+            { label: "50%", pct: 0.50 },
             { label: "75%", pct: 0.75 },
             { label: "MAX", pct: 1.00 },
           ] as const).map(({ label, pct }) => {
@@ -254,13 +257,14 @@ export default function VaultScreen({ onBack }: Props) {
             const active = !dim && Math.abs(monthly - val) < 0.01;
             return (
               <button key={label} onClick={() => !dim && setPreset(val)} style={{
-                padding: "7px 0", width: 58, borderRadius: 22, fontSize: 12, fontWeight: 700,
+                height: 64, borderRadius: 16, width: "100%",
                 border: `1px solid ${active ? "var(--purple-b)" : "var(--border)"}`,
                 background: active ? "var(--purple-bg)" : "var(--surface)",
                 color: active ? "var(--purple)" : dim ? "var(--text3)" : "var(--text2)",
                 cursor: dim ? "default" : "pointer", fontFamily: "inherit",
+                fontSize: 11, fontWeight: 700,
                 transition: "all 0.12s", opacity: dim ? 0.4 : 1,
-                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 1,
+                display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 2,
               }}>
                 <span>{label}</span>
                 {!dim && (
@@ -272,11 +276,9 @@ export default function VaultScreen({ onBack }: Props) {
             );
           })}
         </div>
-      </div>
-
-      {/* ── Numpad ── */}
-      <div style={{ padding: "14px 16px 12px" }}>
-        <Numpad value={monthlyInput} onChange={handleNumpad} />
+        <div style={{ flex: 1 }}>
+          <Numpad value={monthlyInput} onChange={handleNumpad} />
+        </div>
       </div>
 
       {/* ── Duration picker ── */}
