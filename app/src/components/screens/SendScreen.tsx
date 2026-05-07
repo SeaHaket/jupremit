@@ -76,6 +76,7 @@ export default function SendScreen({ onBack }: Props) {
   const [tab, setTab]               = useState<Tab>("instant");
   const [step, setStep]             = useState<Step>("amount");
   const [input, setInput]           = useState(sendAmount > 0 ? sendAmount.toString() : "0");
+  const [displayCountryCode, setDisplayCountryCode] = useState(defaultRecipient?.country ?? "PH");
   const [quote, setQuote]           = useState<any>(null);
   const [sendResult, setSendResult] = useState<any>(null);
   const [loading, setLoading]       = useState(false);
@@ -87,17 +88,22 @@ export default function SendScreen({ onBack }: Props) {
   const [releasingId, setReleasingId] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
 
-  const currency   = defaultRecipient?.currency ?? "PHP";
-  const sym        = CURRENCY_SYMBOLS[currency] ?? "$";
+  const currency    = defaultRecipient?.currency ?? "PHP";
+  const sym         = CURRENCY_SYMBOLS[currency] ?? "$";
   const countryData = COUNTRIES.find(c => c.code === (defaultRecipient?.country ?? ""));
-  const providers  = PROVIDERS_BY_COUNTRY[defaultRecipient?.country ?? ""] ?? [];
+  const providers   = PROVIDERS_BY_COUNTRY[defaultRecipient?.country ?? ""] ?? [];
+
+  // Display country drives FX preview — independent of saved recipient
+  const displayCountry   = COUNTRIES.find(c => c.code === displayCountryCode) ?? COUNTRIES[0];
+  const displayCurrency  = displayCountry.currency;
+  const displaySym       = CURRENCY_SYMBOLS[displayCurrency] ?? "$";
 
   useEffect(() => {
-    fetch(`/api/fx?currency=${currency}`)
+    fetch(`/api/fx?currency=${displayCurrency}`)
       .then(r => r.json()).then(d => setFxRate(d.rate ?? 61.16)).catch(() => {});
     fetch("/api/apy")
       .then(r => r.json()).then(d => setJuicedApy(d.apy ?? 4.5)).catch(() => {});
-  }, [currency]);
+  }, [displayCurrency]);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -507,64 +513,51 @@ export default function SendScreen({ onBack }: Props) {
           ))}
         </div>
 
-        {/* ── Dynamic Recipient Card ── */}
-        {defaultRecipient ? (
-          <div style={{
-            background: accentBg, border: `1px solid ${accentBorder}`,
-            borderRadius: 16, padding: "12px 14px", marginBottom: 12,
-            display: "flex", alignItems: "center", gap: 12,
-          }}>
-            {/* Flag */}
-            <div style={{
-              width: 48, height: 48, borderRadius: 14, background: "var(--surface)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 26, flexShrink: 0, border: "1px solid var(--border)",
-            }}>
-              {countryData?.flag ?? defaultRecipient.flag}
-            </div>
-
-            {/* Name + country + provider */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 1 }}>
-                {defaultRecipient.name}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>
-                {countryData?.name ?? defaultRecipient.country} · <span style={{ color: accentColor, fontWeight: 600 }}>{defaultRecipient.provider}</span>
-              </div>
-              {/* Provider pills for this country */}
-              {providers.length > 0 && (
-                <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" as const }}>
-                  {providers.slice(0, 5).map(p => (
-                    <span key={p.id} style={{
-                      fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20,
-                      background: p.name === defaultRecipient.provider ? accentBg : "var(--surface)",
-                      color: p.name === defaultRecipient.provider ? accentColor : "var(--text3)",
-                      border: `1px solid ${p.name === defaultRecipient.provider ? accentBorder : "var(--border)"}`,
-                    }}>{p.label}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Currency badge */}
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: accentColor }}>{sym}</div>
-              <div style={{ fontSize: 10, color: "var(--text3)", fontWeight: 600 }}>{currency}</div>
-            </div>
+        {/* ── Country picker ── */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase" as const, letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>
+            Recipient Country
+          </label>
+          <div style={{ position: "relative" as const }}>
+            <select
+              value={displayCountryCode}
+              onChange={e => setDisplayCountryCode(e.target.value)}
+              style={{
+                width: "100%", background: "var(--surface)",
+                border: "1px solid var(--border2)", borderRadius: 14,
+                padding: "13px 42px 13px 14px",
+                fontSize: 15, fontWeight: 600, color: "var(--text)",
+                appearance: "none" as any, WebkitAppearance: "none" as any,
+                fontFamily: "inherit", cursor: "pointer", outline: "none",
+              }}
+            >
+              {COUNTRIES.filter(c => c.code !== "OTHER").map(c => (
+                <option key={c.code} value={c.code}>{c.flag}  {c.name} ({c.currency})</option>
+              ))}
+            </select>
+            <svg style={{ position: "absolute" as const, right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" as const, color: "var(--text3)" }}
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </div>
-        ) : (
-          <div style={{
-            background: "var(--amber-bg)", border: "1px solid var(--amber-b)",
-            borderRadius: 16, padding: "12px 14px", marginBottom: 12,
-            display: "flex", alignItems: "center", gap: 10,
-          }}>
-            <span style={{ fontSize: 20 }}>⚠️</span>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--amber)" }}>No recipient set</div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>Go to Account tab to add a recipient</div>
+
+          {/* Recipient mini-chip */}
+          {defaultRecipient ? (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 10 }}>
+              <span style={{ fontSize: 18 }}>{countryData?.flag ?? defaultRecipient.flag}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{defaultRecipient.name}</span>
+                <span style={{ fontSize: 11, color: accentColor, fontWeight: 600, marginLeft: 6 }}>· {defaultRecipient.provider}</span>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: accentColor }}>{displaySym}</span>
             </div>
-          </div>
-        )}
+          ) : (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--amber-bg)", border: "1px solid var(--amber-b)", borderRadius: 10 }}>
+              <span>⚠️</span>
+              <span style={{ fontSize: 12, color: "var(--amber)", fontWeight: 600 }}>Add a recipient in the Account tab to send</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Amount display — center stage ── */}
@@ -594,43 +587,11 @@ export default function SendScreen({ onBack }: Props) {
         <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600, letterSpacing: "0.08em", marginTop: 5 }}>USDC</div>
         {sendAmount > 0 && (
           <div style={{ fontSize: 14, color: "var(--text2)", marginTop: 8, fontWeight: 500 }}>
-            ≈ {sym}{Math.round(sendAmount * fxRate).toLocaleString()}
-            <span style={{ fontSize: 11, color: "var(--text3)", marginLeft: 4 }}>{currency}</span>
+            ≈ {displaySym}{Math.round(sendAmount * fxRate).toLocaleString()}
+            <span style={{ fontSize: 11, color: "var(--text3)", marginLeft: 4 }}>{displayCurrency}</span>
             &nbsp;<span className="badge-est">est.</span>
           </div>
         )}
-
-        {/* Percentage presets — based on wallet USDC balance */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
-          {([
-            { label: "25%", pct: 0.25 },
-            { label: "½",   pct: 0.50 },
-            { label: "75%", pct: 0.75 },
-            { label: "MAX", pct: 1.00 },
-          ] as const).map(({ label, pct }) => {
-            const val    = pctOfBalance(pct);
-            const active = usdcBalance !== null && usdcBalance > 0 && Math.abs(sendAmount - val) < 0.01;
-            const dim    = !usdcBalance || usdcBalance <= 0;
-            return (
-              <button key={label} onClick={() => !dim && setPreset(val)} style={{
-                padding: "7px 0", width: 56, borderRadius: 22, fontSize: 12, fontWeight: 700,
-                border: `1px solid ${active ? accentBorder : "var(--border)"}`,
-                background: active ? accentBg : "var(--surface)",
-                color: active ? accentColor : dim ? "var(--text3)" : "var(--text2)",
-                cursor: dim ? "default" : "pointer", fontFamily: "inherit",
-                transition: "all 0.12s", opacity: dim ? 0.45 : 1,
-                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 1,
-              }}>
-                <span>{label}</span>
-                {usdcBalance !== null && usdcBalance > 0 && (
-                  <span style={{ fontSize: 8, color: active ? accentColor : "var(--text3)", fontWeight: 600 }}>
-                    ${val.toFixed(0)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* ── Hold days (Timed only) ── */}
@@ -658,9 +619,42 @@ export default function SendScreen({ onBack }: Props) {
         </div>
       )}
 
-      {/* ── Numpad ── */}
-      <div style={{ padding: "16px 16px 12px" }}>
-        <Numpad value={input} onChange={handleNumpad} />
+      {/* ── Numpad + percentage column ── */}
+      <div style={{ padding: "16px 16px 12px", display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Numpad value={input} onChange={handleNumpad} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, width: 56 }}>
+          {([
+            { label: "25%", pct: 0.25 },
+            { label: "50%", pct: 0.50 },
+            { label: "75%", pct: 0.75 },
+            { label: "MAX", pct: 1.00 },
+          ] as const).map(({ label, pct }) => {
+            const val    = pctOfBalance(pct);
+            const active = usdcBalance !== null && usdcBalance > 0 && Math.abs(sendAmount - val) < 0.01;
+            const dim    = !usdcBalance || usdcBalance <= 0;
+            return (
+              <button key={label} onClick={() => !dim && setPreset(val)} style={{
+                height: 64, borderRadius: 16, width: "100%",
+                border: `1px solid ${active ? accentBorder : "var(--border)"}`,
+                background: active ? accentBg : "var(--surface)",
+                color: active ? accentColor : dim ? "var(--text3)" : "var(--text2)",
+                cursor: dim ? "default" : "pointer", fontFamily: "inherit",
+                fontSize: 11, fontWeight: 700,
+                transition: "all 0.12s", opacity: dim ? 0.45 : 1,
+                display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 2,
+              }}>
+                <span>{label}</span>
+                {usdcBalance !== null && usdcBalance > 0 && (
+                  <span style={{ fontSize: 8, color: active ? accentColor : "var(--text3)", fontWeight: 600 }}>
+                    ${val.toFixed(0)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Review button ── */}
