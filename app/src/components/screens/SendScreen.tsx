@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Image from "next/image";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -7,6 +7,12 @@ import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { useRecipientStore, useAppStore, useTimedSendStore } from "@/store/jupremit";
 import { Numpad } from "../ui/Numpad";
 import { COUNTRIES, PROVIDERS_BY_COUNTRY, CURRENCY_SYMBOLS } from "@/lib/constants";
+import dynamic from "next/dynamic";
+
+const QrScannerModal = dynamic(
+  () => import("../ui/QrScannerModal").then(m => ({ default: m.QrScannerModal })),
+  { ssr: false }
+);
 
 type Tab  = "instant" | "timed";
 type Step = "amount" | "review" | "executing" | "success" | "error";
@@ -33,7 +39,7 @@ const Wm = () => (
   </div>
 );
 
-// ─── Back arrow icon ─────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 function BackArrow() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -43,8 +49,24 @@ function BackArrow() {
   );
 }
 
+function ScanQrIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+      <rect x="7" y="7" width="4" height="4" rx="0.5" />
+      <rect x="13" y="7" width="4" height="4" rx="0.5" />
+      <rect x="7" y="13" width="4" height="4" rx="0.5" />
+      <path d="M13 17h4v-4" />
+    </svg>
+  );
+}
+
 // ─── Header ──────────────────────────────────────────────────────────────────
-function Hdr({ title, back }: { title: string; back: () => void }) {
+function Hdr({ title, back, action }: { title: string; back: () => void; action?: React.ReactNode }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -59,7 +81,7 @@ function Hdr({ title, back }: { title: string; back: () => void }) {
         <BackArrow />
       </button>
       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{title}</span>
-      <div style={{ width: 36 }} />
+      {action ?? <div style={{ width: 36 }} />}
     </div>
   );
 }
@@ -77,6 +99,8 @@ export default function SendScreen({ onBack }: Props) {
   const [step, setStep]             = useState<Step>("amount");
   const [input, setInput]           = useState(sendAmount > 0 ? sendAmount.toString() : "0");
   const [displayCountryCode, setDisplayCountryCode] = useState(defaultRecipient?.country ?? "PH");
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedWallet, setScannedWallet] = useState<string | null>(null);
   const [quote, setQuote]           = useState<any>(null);
   const [sendResult, setSendResult] = useState<any>(null);
   const [loading, setLoading]       = useState(false);
@@ -92,6 +116,7 @@ export default function SendScreen({ onBack }: Props) {
   const sym         = CURRENCY_SYMBOLS[currency] ?? "$";
   const countryData = COUNTRIES.find(c => c.code === (defaultRecipient?.country ?? ""));
   const providers   = PROVIDERS_BY_COUNTRY[defaultRecipient?.country ?? ""] ?? [];
+  const effectiveWallet = scannedWallet ?? defaultRecipient?.wallet;
 
   // Display country drives FX preview — independent of saved recipient
   const displayCountry   = COUNTRIES.find(c => c.code === displayCountryCode) ?? COUNTRIES[0];
@@ -176,7 +201,7 @@ export default function SendScreen({ onBack }: Props) {
 
   /* ─── INSTANT BOOST execution ─────────────────────────────────────────────── */
   const executeInstantSend = async () => {
-    if (!publicKey || !signTransaction || !defaultRecipient) {
+    if (!publicKey || !signTransaction || !effectiveWallet) {
       setErrMsg("Wallet not connected or no recipient."); setStep("error"); return;
     }
     setStep("executing"); setErrMsg(""); setTxSigs([]);
@@ -184,7 +209,7 @@ export default function SendScreen({ onBack }: Props) {
       setExecStatus("Checking best route via Jupiter Ultra…");
       const res  = await fetch("/api/send", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderWallet: publicKey.toBase58(), recipientWallet: defaultRecipient.wallet, amountUsdc: sendAmount }),
+        body: JSON.stringify({ senderWallet: publicKey.toBase58(), recipientWallet: effectiveWallet, amountUsdc: sendAmount }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Route check failed");
@@ -196,7 +221,7 @@ export default function SendScreen({ onBack }: Props) {
         setTxSigs([sig]);
       } else {
         setExecStatus("Sending USDC directly — approve in wallet…");
-        const recipientPub = new PublicKey(defaultRecipient.wallet);
+        const recipientPub = new PublicKey(effectiveWallet);
         const sig = await doDirectTransfer(publicKey, recipientPub, data.amountRaw);
         setTxSigs([sig]);
       }
@@ -214,7 +239,7 @@ export default function SendScreen({ onBack }: Props) {
 
   /* ─── TIMED SEND: Deposit into JUICED ─────────────────────────────────────── */
   const executeTimedDeposit = async () => {
-    if (!publicKey || !signTransaction || !defaultRecipient) {
+    if (!publicKey || !signTransaction || !effectiveWallet) {
       setErrMsg("Wallet not connected or no recipient."); setStep("error"); return;
     }
     setStep("executing"); setErrMsg(""); setTxSigs([]);
@@ -454,7 +479,7 @@ export default function SendScreen({ onBack }: Props) {
               <div style={{ background: "var(--surface2)", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 11, color: "var(--text2)", lineHeight: 1.7 }}>
                 <strong style={{ color: "var(--text)" }}>⚡ Smart routing:</strong> checks if USDC→JupUSD→USDC gives more than a direct transfer after fees. <strong style={{ color: "var(--green)" }}>One wallet approval.</strong>
               </div>
-              <button className="btn-primary" onClick={executeInstantSend} disabled={!defaultRecipient || !publicKey} style={{ marginBottom: 8 }}>
+              <button className="btn-primary" onClick={executeInstantSend} disabled={!effectiveWallet || !publicKey} style={{ marginBottom: 8 }}>
                 ⚡ Send ${sendAmount.toFixed(2)} USDC instantly →
               </button>
             </>
@@ -477,7 +502,7 @@ export default function SendScreen({ onBack }: Props) {
                 ))}
               </div>
               <button className="btn-primary" style={{ background: "var(--purple)", color: "#fff", marginBottom: 8 }}
-                onClick={executeTimedDeposit} disabled={!defaultRecipient || !publicKey}>
+                onClick={executeTimedDeposit} disabled={!effectiveWallet || !publicKey}>
                 🕐 Deposit ${sendAmount.toFixed(2)} into JUICED ({holdDays}d) →
               </button>
             </>
@@ -497,8 +522,23 @@ export default function SendScreen({ onBack }: Props) {
 
   return (
     <div style={{ position: "relative", zIndex: 0, display: "flex", flexDirection: "column", minHeight: "100%" }}>
+      {showScanner && (
+        <QrScannerModal
+          onResult={addr => setScannedWallet(addr)}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
       <Wm />
-      <Hdr title="Send Money" back={onBack} />
+      <Hdr title="Send Money" back={onBack} action={
+        <button onClick={() => setShowScanner(true)} style={{
+          width: 36, height: 36, borderRadius: 12,
+          border: "1px solid var(--green-b)", background: "var(--green-bg)",
+          color: "var(--green)", display: "flex", alignItems: "center",
+          justifyContent: "center", cursor: "pointer",
+        }}>
+          <ScanQrIcon />
+        </button>
+      } />
 
       <div style={{ padding: "12px 16px 0" }}>
         {/* Tab switcher */}
@@ -541,8 +581,22 @@ export default function SendScreen({ onBack }: Props) {
             </svg>
           </div>
 
-          {/* Recipient mini-chip */}
-          {defaultRecipient ? (
+          {/* Scanned wallet chip — shown when user scanned a QR */}
+          {scannedWallet ? (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--green-bg)", border: "1px solid var(--green-b)", borderRadius: 10 }}>
+              <span style={{ fontSize: 16 }}>🔍</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", marginBottom: 1 }}>Scanned wallet</div>
+                <div style={{ fontSize: 10, color: "var(--text3)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {scannedWallet}
+                </div>
+              </div>
+              <button onClick={() => setScannedWallet(null)} style={{
+                fontSize: 12, color: "var(--text3)", background: "none", border: "none",
+                cursor: "pointer", padding: "4px 6px", lineHeight: 1,
+              }}>✕</button>
+            </div>
+          ) : defaultRecipient ? (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 10 }}>
               <span style={{ fontSize: 18 }}>{countryData?.flag ?? defaultRecipient.flag}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -663,7 +717,7 @@ export default function SendScreen({ onBack }: Props) {
           className="btn-primary"
           style={{ background: accentColor, color: tab === "instant" ? "var(--green-dk)" : "#fff" }}
           onClick={async () => { await fetchQuote(); setStep("review"); }}
-          disabled={!defaultRecipient || sendAmount <= 0}
+          disabled={!effectiveWallet || sendAmount <= 0}
         >
           {loading ? "Loading…" : tab === "instant" ? `Review send $${input} →` : `Review ${holdDays}-day timed send →`}
         </button>

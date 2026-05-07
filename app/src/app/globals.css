@@ -54,6 +54,8 @@ html, body {
 @keyframes spin { to{transform:rotate(360deg)} }
 .spin { animation:spin 0.9s linear infinite; }
 
+@keyframes qrScan { 0%,100%{top:4px;opacity:0.6} 50%{top:calc(100% - 4px);opacity:1} }
+
 /* ── Typography ─────────────────────────────────────────────────────────────── */
 
 /* Tabular / monospaced numbers — apply to all financial figures */
