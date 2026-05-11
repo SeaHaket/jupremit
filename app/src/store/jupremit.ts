@@ -132,6 +132,7 @@ export interface TxRecord {
   id: string;
   type: "instant_send" | "timed_deposit" | "timed_release";
   amountUsdc: number;
+  feeUsdc: number;
   txSig: string;
   ts: number;
   toName?: string;

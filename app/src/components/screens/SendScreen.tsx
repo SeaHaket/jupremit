@@ -14,6 +14,9 @@ const QrScannerModal = dynamic(
   { ssr: false }
 );
 
+const PROTOCOL_FEE_BPS  = 20;                           // 0.20 %
+const FEE_WALLET        = process.env.NEXT_PUBLIC_FEE_WALLET ?? "";
+
 type Tab  = "instant" | "timed";
 type Step = "amount" | "review" | "executing" | "success" | "error";
 
@@ -123,6 +126,10 @@ export default function SendScreen({ onBack }: Props) {
   const countryData = COUNTRIES.find(c => c.code === (defaultRecipient?.country ?? ""));
   const providers   = PROVIDERS_BY_COUNTRY[defaultRecipient?.country ?? ""] ?? [];
   const effectiveWallet = scannedWallet ?? defaultRecipient?.wallet;
+  const feeUsdc  = Math.round(sendAmount * PROTOCOL_FEE_BPS) / 10_000;
+  const netUsdc  = sendAmount - feeUsdc;
+  const feeRaw   = Math.round(feeUsdc  * 1_000_000);
+  const netRaw   = Math.round(netUsdc  * 1_000_000);
 
   // Display country drives FX preview — independent of saved recipient
   const displayCountry   = COUNTRIES.find(c => c.code === displayCountryCode) ?? COUNTRIES[0];
@@ -202,8 +209,10 @@ export default function SendScreen({ onBack }: Props) {
     return sig;
   };
 
-  /* ─── SPL direct USDC transfer ────────────────────────────────────────────── */
-  const doDirectTransfer = async (fromPub: PublicKey, toPub: PublicKey, usdcRaw: number): Promise<string> => {
+  /* ─── SPL direct USDC transfer (net to recipient + optional fee in one tx) ── */
+  const doDirectTransfer = async (
+    fromPub: PublicKey, toPub: PublicKey, netTransferRaw: number, protocolFeeRaw = 0
+  ): Promise<string> => {
     const { createTransferInstruction, getAssociatedTokenAddress,
             createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID }
       = await import("@solana/spl-token");
@@ -213,7 +222,15 @@ export default function SendScreen({ onBack }: Props) {
     const tx      = new Transaction();
     if (!await connection.getAccountInfo(toAta))
       tx.add(createAssociatedTokenAccountInstruction(fromPub, toAta, toPub, USDC));
-    tx.add(createTransferInstruction(fromAta, toAta, fromPub, BigInt(usdcRaw), [], TOKEN_PROGRAM_ID));
+    tx.add(createTransferInstruction(fromAta, toAta, fromPub, BigInt(netTransferRaw), [], TOKEN_PROGRAM_ID));
+    // Bundle protocol fee transfer in the same transaction (one wallet approval)
+    if (protocolFeeRaw > 0 && FEE_WALLET) {
+      const feePub = new PublicKey(FEE_WALLET);
+      const feeAta = await getAssociatedTokenAddress(USDC, feePub);
+      if (!await connection.getAccountInfo(feeAta))
+        tx.add(createAssociatedTokenAccountInstruction(fromPub, feeAta, feePub, USDC));
+      tx.add(createTransferInstruction(fromAta, feeAta, fromPub, BigInt(protocolFeeRaw), [], TOKEN_PROGRAM_ID));
+    }
     const { blockhash } = await connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
     tx.feePayer = fromPub;
@@ -233,23 +250,24 @@ export default function SendScreen({ onBack }: Props) {
       setExecStatus("Checking best route via Jupiter Ultra…");
       const res  = await fetch("/api/send", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderWallet: publicKey.toBase58(), recipientWallet: effectiveWallet, amountUsdc: sendAmount }),
+        body: JSON.stringify({ senderWallet: publicKey.toBase58(), recipientWallet: effectiveWallet, amountUsdc: netUsdc }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Route check failed");
       setSendResult(data);
 
+      const toName = scannedWallet ? "Scanned address" : defaultRecipient?.name;
       if (data.strategy === "instant_boost") {
         setExecStatus("Instant Boost active — approve in wallet…");
         const sig = await signAndSend(data.tx);
         setTxSigs([sig]);
-        addTx({ type: "instant_send", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet, strategy: "instant_boost" });
+        addTx({ type: "instant_send", amountUsdc: sendAmount, feeUsdc, txSig: sig, ts: Date.now(), toName, toWallet: effectiveWallet, strategy: "instant_boost" });
       } else {
         setExecStatus("Sending USDC directly — approve in wallet…");
         const recipientPub = new PublicKey(effectiveWallet);
-        const sig = await doDirectTransfer(publicKey, recipientPub, data.amountRaw);
+        const sig = await doDirectTransfer(publicKey, recipientPub, netRaw, feeRaw);
         setTxSigs([sig]);
-        addTx({ type: "instant_send", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet, strategy: "direct" });
+        addTx({ type: "instant_send", amountUsdc: sendAmount, feeUsdc, txSig: sig, ts: Date.now(), toName, toWallet: effectiveWallet, strategy: "direct" });
       }
       setStep("success");
     } catch (e: any) {
@@ -270,10 +288,10 @@ export default function SendScreen({ onBack }: Props) {
     }
     setStep("executing"); setErrMsg(""); setTxSigs([]);
     try {
-      setExecStatus(`Depositing $${sendAmount} USDC into JUICED (${holdDays}-day hold)…`);
+      setExecStatus(`Depositing $${netUsdc.toFixed(2)} USDC into JUICED (${holdDays}-day hold)…`);
       const res  = await fetch("/api/time-send/deposit", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderWallet: publicKey.toBase58(), amountUsdc: sendAmount }),
+        body: JSON.stringify({ senderWallet: publicKey.toBase58(), amountUsdc: netUsdc }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Deposit failed");
@@ -281,7 +299,7 @@ export default function SendScreen({ onBack }: Props) {
       setExecStatus("Approve the Jupiter Lend deposit in your wallet…");
       const sig = await signAndSend(data.transaction);
       setTxSigs([sig]);
-      addTx({ type: "timed_deposit", amountUsdc: sendAmount, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet });
+      addTx({ type: "timed_deposit", amountUsdc: sendAmount, feeUsdc, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet });
 
       const matureAt = Date.now() + holdDays * 86_400_000;
       addTimedSend({
@@ -330,7 +348,7 @@ export default function SendScreen({ onBack }: Props) {
       const withdrawSig  = await signAndSend(data.transaction);
       const recipientPub = new PublicKey(ts.recipientWallet);
       const transferSig  = await doDirectTransfer(publicKey, recipientPub, data.senderGetsRaw);
-      addTx({ type: "timed_release", amountUsdc: ts.amountUsdc, txSig: transferSig, ts: Date.now(), toName: ts.recipientName, toWallet: ts.recipientWallet, yieldUsdc: data.yieldUsdc ?? 0 });
+      addTx({ type: "timed_release", amountUsdc: ts.amountUsdc, feeUsdc: 0, txSig: transferSig, ts: Date.now(), toName: ts.recipientName, toWallet: ts.recipientWallet, yieldUsdc: data.yieldUsdc ?? 0 });
 
       markReleased(tsId, transferSig, data.yieldUsdc ?? 0);
     } catch (e: any) {
@@ -471,11 +489,25 @@ export default function SendScreen({ onBack }: Props) {
             )}
           </div>
 
+          {/* Fee breakdown */}
+          <div style={{ ...card, padding: "12px 16px", marginBottom: 8 }}>
+            {[
+              { label: "Send amount",           val: `$${sendAmount.toFixed(2)}`,  color: "var(--text)" },
+              { label: `Protocol fee (${PROTOCOL_FEE_BPS / 100}%)`, val: `-$${feeUsdc.toFixed(4)}`, color: "var(--amber)" },
+              { label: "Recipient gets (USDC)", val: `$${netUsdc.toFixed(4)}`,  color: "var(--green)" },
+            ].map(({ label, val, color }, i, arr) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <span style={{ fontSize: 11, color: "var(--text2)" }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color }}>{val}</span>
+              </div>
+            ))}
+          </div>
+
           {/* FX row */}
           <div style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px" }}>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text3)", marginBottom: 2 }}>Recipient gets (est.)</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)" }}>{sym}{Math.round(sendAmount * fxRate).toLocaleString()} <span style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}>{currency}</span></div>
+              <div style={{ fontSize: 10, color: "var(--text3)", marginBottom: 2 }}>Local equivalent (est.)</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)" }}>{sym}{Math.round(netUsdc * fxRate).toLocaleString()} <span style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}>{currency}</span></div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 10, color: "var(--text3)", marginBottom: 2 }}>Rate</div>
@@ -487,7 +519,7 @@ export default function SendScreen({ onBack }: Props) {
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>vs Competitors</div>
           <div style={card}>
             {([
-              { n: "⚡ JupRemit", fee: "$0.003", amt: quote?.competitors?.jupremit?.localAmt ?? Math.round(sendAmount * fxRate), green: true },
+              { n: "⚡ JupRemit", fee: "0.20%", amt: quote?.competitors?.jupremit?.localAmt ?? Math.round(netUsdc * fxRate), green: true },
               { n: "Brightwell",   fee: "$8.00",  amt: quote?.competitors?.brightwell?.localAmt  ?? Math.round((sendAmount - 8) * fxRate * 0.96),    green: false },
               { n: "MoneyGram",    fee: "$5.00",  amt: quote?.competitors?.moneygram?.localAmt   ?? Math.round((sendAmount - 5) * fxRate * 0.961),   green: false },
               { n: "Western Union",fee: "$6.99",  amt: quote?.competitors?.westernUnion?.localAmt ?? Math.round((sendAmount - 6.99) * fxRate * 0.957), green: false },
