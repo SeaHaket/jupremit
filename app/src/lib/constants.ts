@@ -28,6 +28,7 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   SGD: "S$", KHR: "₭", MMK: "K", JPY: "¥", KRW: "₩",
   AUD: "A$", GBP: "£", ZAR: "R", NGN: "₦", KES: "KSh",
   INR: "₹", BRL: "R$", USD: "$",
+  GHS: "₵", TZS: "TSh", UGX: "USh", RWF: "Fr", ZMW: "ZK", XOF: "CFA",
 };
 
 // ─── Offramp providers by country ────────────────────────────────────────────
@@ -43,6 +44,7 @@ export const PROVIDERS_BY_COUNTRY: Record<string, Provider[]> = {
     { id: "coins_ph", name: "Coins.ph",      label: "Coins.ph",    desc: "USDC on Solana · converts to PHP" },
     { id: "gcash",    name: "GCash",         label: "GCash",       desc: "USDC → PHP via bridge" },
     { id: "maya",     name: "Maya",          label: "Maya",        desc: "USDC → PHP via InstaPay" },
+    { id: "fonbnk",   name: "Fonbnk",        label: "Fonbnk",      desc: "USDC → PHP · P2P fiat offramp" },
     { id: "bank_ph",  name: "Bank transfer", label: "PH Bank",     desc: "Any PH bank via InstaPay" },
   ],
   ID: [
@@ -108,14 +110,17 @@ export const PROVIDERS_BY_COUNTRY: Record<string, Provider[]> = {
     { id: "standard_bank", name: "Standard Bank", label: "Standard Bank", desc: "USDC → ZAR via Standard Bank" },
     { id: "fnb",           name: "FNB",           label: "FNB",           desc: "USDC → ZAR via FNB" },
     { id: "capitec",       name: "Capitec",       label: "Capitec",       desc: "USDC → ZAR via Capitec" },
+    { id: "fonbnk",        name: "Fonbnk",        label: "Fonbnk",        desc: "USDC → ZAR · P2P fiat offramp" },
   ],
   NG: [
     { id: "opay",        name: "OPay",        label: "OPay",       desc: "USDC → NGN via OPay" },
     { id: "flutterwave", name: "Flutterwave", label: "Flutterwave",desc: "USDC → NGN bank" },
+    { id: "fonbnk",      name: "Fonbnk",      label: "Fonbnk",     desc: "USDC → NGN · P2P fiat offramp" },
   ],
   KE: [
     { id: "mpesa",       name: "M-Pesa",      label: "M-Pesa",     desc: "USDC → KES via M-Pesa" },
     { id: "equity_ke",   name: "Equity Bank", label: "Equity Bank",desc: "USDC → KES bank" },
+    { id: "fonbnk",      name: "Fonbnk",      label: "Fonbnk",     desc: "USDC → KES · P2P fiat offramp" },
   ],
   IN: [
     { id: "upi",   name: "UPI/PhonePe", label: "UPI",   desc: "USDC → INR via UPI" },
@@ -124,6 +129,40 @@ export const PROVIDERS_BY_COUNTRY: Record<string, Provider[]> = {
   BR: [
     { id: "pix",    name: "Pix",    label: "Pix",    desc: "USDC → BRL via Pix instant" },
     { id: "nubank", name: "Nubank", label: "Nubank", desc: "USDC → BRL via Nubank" },
+  ],
+  GH: [
+    { id: "mtn_gh",      name: "MTN MoMo",       label: "MTN MoMo",      desc: "USDC → GHS via MTN Mobile Money" },
+    { id: "vodafone_gh", name: "Vodafone Cash",   label: "Vodafone Cash", desc: "USDC → GHS via Vodafone Cash" },
+    { id: "airteltigo",  name: "AirtelTigo Money",label: "AirtelTigo",    desc: "USDC → GHS via AirtelTigo" },
+    { id: "fonbnk",      name: "Fonbnk",          label: "Fonbnk",        desc: "USDC → GHS · P2P fiat offramp" },
+  ],
+  TZ: [
+    { id: "mpesa_tz",   name: "M-Pesa Tanzania", label: "M-Pesa",      desc: "USDC → TZS via M-Pesa" },
+    { id: "airtel_tz",  name: "Airtel Money",    label: "Airtel Money", desc: "USDC → TZS via Airtel" },
+    { id: "tigo_tz",    name: "Tigo Pesa",       label: "Tigo Pesa",   desc: "USDC → TZS via Tigo Pesa" },
+    { id: "fonbnk",     name: "Fonbnk",          label: "Fonbnk",      desc: "USDC → TZS · P2P fiat offramp" },
+  ],
+  UG: [
+    { id: "mtn_ug",    name: "MTN MoMo Uganda", label: "MTN MoMo",    desc: "USDC → UGX via MTN MoMo" },
+    { id: "airtel_ug", name: "Airtel Money",    label: "Airtel Money", desc: "USDC → UGX via Airtel" },
+    { id: "fonbnk",    name: "Fonbnk",          label: "Fonbnk",      desc: "USDC → UGX · P2P fiat offramp" },
+  ],
+  RW: [
+    { id: "mtn_rw",    name: "MTN MoMo Rwanda", label: "MTN MoMo",    desc: "USDC → RWF via MTN MoMo" },
+    { id: "airtel_rw", name: "Airtel Money",    label: "Airtel Money", desc: "USDC → RWF via Airtel" },
+    { id: "fonbnk",    name: "Fonbnk",          label: "Fonbnk",      desc: "USDC → RWF · P2P fiat offramp" },
+  ],
+  ZM: [
+    { id: "mtn_zm",    name: "MTN MoMo Zambia", label: "MTN MoMo",    desc: "USDC → ZMW via MTN MoMo" },
+    { id: "airtel_zm", name: "Airtel Money",    label: "Airtel Money", desc: "USDC → ZMW via Airtel" },
+    { id: "zanaco",    name: "Zanaco",          label: "Zanaco",      desc: "USDC → ZMW via Zanaco bank" },
+    { id: "fonbnk",    name: "Fonbnk",          label: "Fonbnk",      desc: "USDC → ZMW · P2P fiat offramp" },
+  ],
+  SN: [
+    { id: "orange_sn", name: "Orange Money", label: "Orange Money", desc: "USDC → XOF via Orange Money" },
+    { id: "wave_sn",   name: "Wave",         label: "Wave",         desc: "USDC → XOF via Wave" },
+    { id: "free_sn",   name: "Free Money",   label: "Free Money",   desc: "USDC → XOF via Free Money" },
+    { id: "fonbnk",    name: "Fonbnk",       label: "Fonbnk",       desc: "USDC → XOF · P2P fiat offramp" },
   ],
   OTHER: [
     { id: "usdc_wallet", name: "USDC wallet", label: "USDC wallet", desc: "Any Solana wallet · global" },
@@ -149,6 +188,12 @@ export const COUNTRIES = [
   { code: "KE", name: "Kenya",         currency: "KES", flag: "🇰🇪", jupcard: false },
   { code: "IN", name: "India",         currency: "INR", flag: "🇮🇳", jupcard: false },
   { code: "BR", name: "Brazil",        currency: "BRL", flag: "🇧🇷", jupcard: false },
+  { code: "GH", name: "Ghana",    currency: "GHS", flag: "🇬🇭", jupcard: false },
+  { code: "TZ", name: "Tanzania", currency: "TZS", flag: "🇹🇿", jupcard: false },
+  { code: "UG", name: "Uganda",   currency: "UGX", flag: "🇺🇬", jupcard: false },
+  { code: "RW", name: "Rwanda",   currency: "RWF", flag: "🇷🇼", jupcard: false },
+  { code: "ZM", name: "Zambia",   currency: "ZMW", flag: "🇿🇲", jupcard: false },
+  { code: "SN", name: "Senegal",  currency: "XOF", flag: "🇸🇳", jupcard: false },
   { code: "OTHER", name: "Other (200+ countries)", currency: "USD", flag: "🌍", jupcard: false },
 ];
 
@@ -159,4 +204,5 @@ export const FALLBACK_RATES: Record<string, number> = {
   JPY: 143.5, KRW: 1370,  AUD: 1.58,  GBP: 0.79,
   ZAR: 18.5,  NGN: 1620,  KES: 129,   INR: 83.4,
   BRL: 5.2,   USD: 1,
+  GHS: 15.5,  TZS: 2620,  UGX: 3750,  RWF: 1310,  ZMW: 27.2,  XOF: 612,
 };
