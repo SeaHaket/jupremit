@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 
+const IS_SANDBOX = process.env.NEXT_PUBLIC_FONBNK_SANDBOX !== "false";
+
 interface Props {
   countryCode:  string;
   currencyCode: string;
@@ -47,11 +49,13 @@ export function FonbnkCashoutModal({ countryCode, currencyCode, amount, onClose 
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            fontSize: 10, fontWeight: 700, color: "var(--amber)",
-            background: "var(--amber-bg)", border: "1px solid var(--amber-b)",
-            borderRadius: 6, padding: "3px 8px", letterSpacing: "0.05em",
-          }}>SANDBOX</div>
+          {IS_SANDBOX && (
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: "var(--amber)",
+              background: "var(--amber-bg)", border: "1px solid var(--amber-b)",
+              borderRadius: 6, padding: "3px 8px", letterSpacing: "0.05em",
+            }}>SANDBOX</div>
+          )}
           <button onClick={onClose} style={{
             width: 32, height: 32, borderRadius: 10,
             border: "1px solid var(--border)", background: "var(--surface2)",

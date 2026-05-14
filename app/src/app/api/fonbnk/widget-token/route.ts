@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     asset:           "USDC",
     countryIsoCode:  countryCode,
     currencyIsoCode: currencyCode,
-    hideSwitch:      "true",   // lock to off-ramp (crypto → fiat) mode
+    hideSwitch:      "true",
   });
 
   // Pre-fill amount if provided
