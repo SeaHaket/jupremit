@@ -167,9 +167,7 @@ export default function SendScreen({ onBack }: Props) {
     return Math.floor(usdcBalance * pct * 100) / 100;
   }
 
-  // Pre-fetch the signed Fonbnk URL whenever amount / country changes so the
-  // button click can call window.open(url) synchronously (Chrome blocks
-  // window.open / win.location.href that happen after any await).
+  // Pre-fetch signed Fonbnk URL so the ideal click path is fully synchronous.
   useEffect(() => {
     if (sendAmount <= 0) { setFonbnkUrl(null); return; }
     let cancelled = false;
@@ -185,18 +183,41 @@ export default function SendScreen({ onBack }: Props) {
   }, [sendAmount, displayCountryCode, displayCurrency]);
 
   function openFonbnk() {
-    if (!fonbnkUrl) return;
-    const url = fonbnkUrl;
-    setFonbnkUrl(null); // consume so same URL isn't reused (duplicate-order prevention)
-    window.open(url, "_blank", "noopener,noreferrer");
-    // Re-fetch immediately so the button is ready for the next click
+    if (sendAmount <= 0) return;
+
+    if (fonbnkUrl) {
+      // Best path: URL pre-fetched → synchronous open, popup blocker never triggers
+      const url = fonbnkUrl;
+      setFonbnkUrl(null);
+      window.open(url, "_blank", "noopener,noreferrer");
+      // Re-fetch immediately for the next click
+      setFonbnkFetching(true);
+      const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
+      params.set("amount", sendAmount.toFixed(2));
+      fetch(`/api/fonbnk/widget-token?${params}`)
+        .then(r => r.json())
+        .then(d => { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); })
+        .catch(() => setFonbnkFetching(false));
+      return;
+    }
+
+    // Fallback: pre-fetch hasn't resolved yet.
+    // Open a blank window synchronously (user gesture), then navigate it.
+    // Chrome only blocks window.open(url) of NEW windows from async — navigating
+    // an already-open window after await is always allowed.
+    const win = window.open("about:blank", "_blank");
+    if (!win) { alert("Please allow popups for this site and try again."); return; }
     setFonbnkFetching(true);
     const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
-    if (sendAmount > 0) params.set("amount", sendAmount.toFixed(2));
+    params.set("amount", sendAmount.toFixed(2));
     fetch(`/api/fonbnk/widget-token?${params}`)
       .then(r => r.json())
-      .then(d => { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); })
-      .catch(() => setFonbnkFetching(false));
+      .then(d => {
+        setFonbnkFetching(false);
+        if (d.url) { win.location.href = d.url; }
+        else { win.close(); alert("Fonbnk error: " + (d.error ?? "Unknown error")); }
+      })
+      .catch(() => { setFonbnkFetching(false); win.close(); alert("Network error — please try again."); });
   }
 
   const fetchQuote = async () => {
@@ -863,7 +884,7 @@ export default function SendScreen({ onBack }: Props) {
         <button
           className="btn-primary"
           onClick={openFonbnk}
-          disabled={!fonbnkUrl}
+          disabled={sendAmount <= 0}
           style={{
             background: accentColor,
             color: tab === "instant" ? "var(--green-dk)" : "#fff",
