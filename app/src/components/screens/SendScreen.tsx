@@ -104,7 +104,8 @@ export default function SendScreen({ onBack }: Props) {
   const [walletInput, setWalletInput]   = useState("");
   const [walletError, setWalletError]   = useState("");
   const [showScanner, setShowScanner]   = useState(false);
-  const [fonbnkLoading, setFonbnkLoading] = useState(false);
+  const [fonbnkUrl, setFonbnkUrl]       = useState<string | null>(null);
+  const [fonbnkFetching, setFonbnkFetching] = useState(false);
   const [quote, setQuote]               = useState<any>(null);
   const [sendResult, setSendResult]     = useState<any>(null);
   const [loading, setLoading]           = useState(false);
@@ -166,28 +167,37 @@ export default function SendScreen({ onBack }: Props) {
     return Math.floor(usdcBalance * pct * 100) / 100;
   }
 
-  const openFonbnk = async () => {
-    // Open the blank window synchronously inside the click handler so the
-    // browser recognises it as a user-initiated popup (not blocked).
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    setFonbnkLoading(true);
-    try {
-      const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
-      if (sendAmount > 0) params.set("amount", sendAmount.toFixed(2));
-      const res  = await fetch(`/api/fonbnk/widget-token?${params}`);
-      const data = await res.json();
-      if (data.url && win) {
-        win.location.href = data.url;
-      } else {
-        win?.close();
-        alert("Failed to load Fonbnk: " + (data.error ?? "Unknown error"));
-      }
-    } catch {
-      win?.close();
-      alert("Network error — please try again");
-    }
-    setFonbnkLoading(false);
-  };
+  // Pre-fetch the signed Fonbnk URL whenever amount / country changes so the
+  // button click can call window.open(url) synchronously (Chrome blocks
+  // window.open / win.location.href that happen after any await).
+  useEffect(() => {
+    if (sendAmount <= 0) { setFonbnkUrl(null); return; }
+    let cancelled = false;
+    setFonbnkFetching(true);
+    setFonbnkUrl(null);
+    const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
+    params.set("amount", sendAmount.toFixed(2));
+    fetch(`/api/fonbnk/widget-token?${params}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); } })
+      .catch(() => { if (!cancelled) setFonbnkFetching(false); });
+    return () => { cancelled = true; };
+  }, [sendAmount, displayCountryCode, displayCurrency]);
+
+  function openFonbnk() {
+    if (!fonbnkUrl) return;
+    const url = fonbnkUrl;
+    setFonbnkUrl(null); // consume so same URL isn't reused (duplicate-order prevention)
+    window.open(url, "_blank", "noopener,noreferrer");
+    // Re-fetch immediately so the button is ready for the next click
+    setFonbnkFetching(true);
+    const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
+    if (sendAmount > 0) params.set("amount", sendAmount.toFixed(2));
+    fetch(`/api/fonbnk/widget-token?${params}`)
+      .then(r => r.json())
+      .then(d => { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); })
+      .catch(() => setFonbnkFetching(false));
+  }
 
   const fetchQuote = async () => {
     setLoading(true);
@@ -853,14 +863,14 @@ export default function SendScreen({ onBack }: Props) {
         <button
           className="btn-primary"
           onClick={openFonbnk}
-          disabled={sendAmount <= 0 || fonbnkLoading}
+          disabled={!fonbnkUrl}
           style={{
             background: accentColor,
             color: tab === "instant" ? "var(--green-dk)" : "#fff",
             display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
           }}
         >
-          <span>{fonbnkLoading ? "Opening…" : "💳 Send via Fonbnk (bank / mobile money) →"}</span>
+          <span>{fonbnkFetching && !fonbnkUrl ? "Preparing…" : "💳 Send via Fonbnk (bank / mobile money) →"}</span>
           <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}>
             No Solana wallet needed · fiat delivered directly
           </span>
