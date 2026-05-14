@@ -13,6 +13,10 @@ const QrScannerModal = dynamic(
   () => import("../ui/QrScannerModal").then(m => ({ default: m.QrScannerModal })),
   { ssr: false }
 );
+const FonbnkCashoutModal = dynamic(
+  () => import("../ui/FonbnkCashoutModal").then(m => ({ default: m.FonbnkCashoutModal })),
+  { ssr: false }
+);
 
 const PROTOCOL_FEE_BPS  = 20;                           // 0.20 %
 const FEE_WALLET        = process.env.NEXT_PUBLIC_FEE_WALLET ?? "";
@@ -121,6 +125,7 @@ export default function SendScreen({ onBack }: Props) {
   const [now, setNow]               = useState(Date.now());
   const [releasingId, setReleasingId] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+  const [showCashout, setShowCashout] = useState(false);
 
   const currency    = defaultRecipient?.currency ?? "PHP";
   const sym         = CURRENCY_SYMBOLS[currency] ?? "$";
@@ -432,6 +437,15 @@ export default function SendScreen({ onBack }: Props) {
   // ─── Success ────────────────────────────────────────────────────────────────
   if (step === "success") return (
     <div style={{ position: "relative", zIndex: 0 }}>
+      {showCashout && effectiveWallet && (
+        <FonbnkCashoutModal
+          walletAddress={effectiveWallet}
+          countryCode={defaultRecipient?.country ?? displayCountryCode}
+          currencyCode={defaultRecipient?.currency ?? displayCurrency}
+          recipientName={defaultRecipient?.name}
+          onClose={() => setShowCashout(false)}
+        />
+      )}
       <Wm />
       <Hdr title="Done!" back={onBack} />
       <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 40, textAlign: "center" }}>
@@ -480,7 +494,21 @@ export default function SendScreen({ onBack }: Props) {
           <a key={sig} href={`https://solscan.io/tx/${sig}`} target="_blank" rel="noreferrer"
             style={{ fontSize: 11, color: "var(--green)", fontFamily: "monospace" }}>View on Solscan ↗</a>
         ))}
-        <button className="btn-primary" style={{ maxWidth: 200 }} onClick={() => { setStep("amount"); setTxSigs([]); setSendResult(null); }}>Send again</button>
+        {effectiveWallet && (
+          <button
+            onClick={() => setShowCashout(true)}
+            style={{
+              width: "100%", padding: "13px 16px", borderRadius: 16,
+              border: "1px solid var(--border2)", background: "var(--surface)",
+              color: "var(--text)", fontSize: 13, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}
+          >
+            <span>💳</span> Help recipient cash out via Fonbnk →
+          </button>
+        )}
+        <button className="btn-primary" style={{ maxWidth: 200 }} onClick={() => { setStep("amount"); setTxSigs([]); setSendResult(null); setShowCashout(false); }}>Send again</button>
         <button onClick={onBack} style={{ fontSize: 13, color: "var(--text3)", background: "none", border: "none", cursor: "pointer" }}>← Back to home</button>
       </div>
     </div>
