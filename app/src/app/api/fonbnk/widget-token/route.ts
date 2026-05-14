@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readLimiter, checkRateLimit } from "@/lib/ratelimit";
 
-const SOURCE  = process.env.FONBNK_SOURCE          ?? "";
+const SOURCE  = process.env.FONBNK_SOURCE           ?? "";
 const SECRET  = process.env.FONBNK_SIGNATURE_SECRET ?? "";
 const SANDBOX = process.env.FONBNK_SANDBOX !== "false";
 
-const BASE_URL     = SANDBOX ? "https://sandbox-pay.fonbnk.com" : "https://pay.fonbnk.com";
-const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const COUNTRY_RE    = /^[A-Z]{2}$/;
-const CURRENCY_RE   = /^[A-Z]{2,4}$/;
+const BASE_URL    = SANDBOX ? "https://sandbox-pay.fonbnk.com" : "https://pay.fonbnk.com";
+const COUNTRY_RE  = /^[A-Z]{2,6}$/;
+const CURRENCY_RE = /^[A-Z]{2,4}$/;
 
 // HS256 JWT using built-in Web Crypto (no extra deps)
 async function signJwt(payload: Record<string, unknown>): Promise<string> {
-  const header   = { alg: "HS256", typ: "JWT" };
-  const enc      = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
-  const data     = `${enc(header)}.${enc(payload)}`;
-  // Wrap in new Uint8Array to guarantee ArrayBuffer backing (not SharedArrayBuffer)
+  const header    = { alg: "HS256", typ: "JWT" };
+  const enc       = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const data      = `${enc(header)}.${enc(payload)}`;
   const secretBuf = new Uint8Array(Buffer.from(SECRET));
   const dataBuf   = new Uint8Array(Buffer.from(data));
   const key = await crypto.subtle.importKey(
@@ -34,13 +32,11 @@ export async function GET(req: NextRequest) {
   if (!SOURCE || !SECRET)
     return NextResponse.json({ error: "Fonbnk not configured" }, { status: 503 });
 
-  const sp            = req.nextUrl.searchParams;
-  const address       = sp.get("address")      ?? "";
-  const countryCode   = (sp.get("country")     ?? "").toUpperCase();
-  const currencyCode  = (sp.get("currency")    ?? "").toUpperCase();
+  const sp           = req.nextUrl.searchParams;
+  const countryCode  = (sp.get("country")  ?? "").toUpperCase();
+  const currencyCode = (sp.get("currency") ?? "").toUpperCase();
+  const amount       = sp.get("amount") ?? "";
 
-  if (!SOL_PUBKEY_RE.test(address))
-    return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
   if (!COUNTRY_RE.test(countryCode))
     return NextResponse.json({ error: "Invalid country code" }, { status: 400 });
   if (!CURRENCY_RE.test(currencyCode))
@@ -53,13 +49,14 @@ export async function GET(req: NextRequest) {
     signature,
     network:         "SOLANA",
     asset:           "USDC",
-    address,
     countryIsoCode:  countryCode,
     currencyIsoCode: currencyCode,
-    freezeWallet:    "true",
-    hideSwitch:      "true",
-    redirectUrl:     req.headers.get("origin") ?? "",
+    hideSwitch:      "true",   // lock to off-ramp (crypto → fiat) mode
   });
+
+  // Pre-fill amount if provided
+  if (amount && Number.isFinite(Number(amount)) && Number(amount) > 0)
+    params.set("amount", amount);
 
   return NextResponse.json({ url: `${BASE_URL}/offramp?${params}` });
 }

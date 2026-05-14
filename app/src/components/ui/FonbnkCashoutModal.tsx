@@ -2,35 +2,35 @@
 import { useEffect, useState } from "react";
 
 interface Props {
-  walletAddress: string;
-  countryCode:   string;
-  currencyCode:  string;
-  recipientName?: string;
-  onClose:       () => void;
+  countryCode:  string;
+  currencyCode: string;
+  amount?:      number;
+  onClose:      () => void;
 }
 
-export function FonbnkCashoutModal({ walletAddress, countryCode, currencyCode, recipientName, onClose }: Props) {
+export function FonbnkCashoutModal({ countryCode, currencyCode, amount, onClose }: Props) {
   const [url, setUrl]         = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const params = new URLSearchParams({ address: walletAddress, country: countryCode, currency: currencyCode });
+    const params = new URLSearchParams({ country: countryCode, currency: currencyCode });
+    if (amount && amount > 0) params.set("amount", amount.toFixed(2));
     fetch(`/api/fonbnk/widget-token?${params}`)
       .then(r => r.json())
       .then(d => {
         if (d.url) setUrl(d.url);
-        else setError(d.error ?? "Failed to load cashout widget");
+        else setError(d.error ?? "Failed to load Fonbnk");
       })
       .catch(() => setError("Network error — please try again"))
       .finally(() => setLoading(false));
-  }, [walletAddress, countryCode, currencyCode]);
+  }, [countryCode, currencyCode, amount]);
 
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 300,
-      background: "rgba(0,0,0,0.85)", display: "flex",
-      flexDirection: "column", alignItems: "stretch",
+      background: "rgba(0,0,0,0.85)",
+      display: "flex", flexDirection: "column",
     }}>
       {/* Header */}
       <div style={{
@@ -40,22 +40,18 @@ export function FonbnkCashoutModal({ walletAddress, countryCode, currencyCode, r
       }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
-            Cash Out via Fonbnk
+            Send via Fonbnk
           </div>
-          {recipientName && (
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>
-              for {recipientName}
-            </div>
-          )}
+          <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>
+            Delivers fiat to recipient's bank or mobile money
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             fontSize: 10, fontWeight: 700, color: "var(--amber)",
             background: "var(--amber-bg)", border: "1px solid var(--amber-b)",
             borderRadius: 6, padding: "3px 8px", letterSpacing: "0.05em",
-          }}>
-            SANDBOX
-          </div>
+          }}>SANDBOX</div>
           <button onClick={onClose} style={{
             width: 32, height: 32, borderRadius: 10,
             border: "1px solid var(--border)", background: "var(--surface2)",
@@ -102,7 +98,7 @@ export function FonbnkCashoutModal({ walletAddress, countryCode, currencyCode, r
             src={url}
             style={{ width: "100%", height: "100%", border: "none" }}
             allow="camera; clipboard-write"
-            title="Fonbnk cashout"
+            title="Fonbnk send"
           />
         )}
       </div>

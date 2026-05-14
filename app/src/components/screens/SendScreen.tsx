@@ -437,15 +437,6 @@ export default function SendScreen({ onBack }: Props) {
   // ─── Success ────────────────────────────────────────────────────────────────
   if (step === "success") return (
     <div style={{ position: "relative", zIndex: 0 }}>
-      {showCashout && effectiveWallet && (
-        <FonbnkCashoutModal
-          walletAddress={effectiveWallet}
-          countryCode={defaultRecipient?.country ?? displayCountryCode}
-          currencyCode={defaultRecipient?.currency ?? displayCurrency}
-          recipientName={defaultRecipient?.name}
-          onClose={() => setShowCashout(false)}
-        />
-      )}
       <Wm />
       <Hdr title="Done!" back={onBack} />
       <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 40, textAlign: "center" }}>
@@ -494,20 +485,6 @@ export default function SendScreen({ onBack }: Props) {
           <a key={sig} href={`https://solscan.io/tx/${sig}`} target="_blank" rel="noreferrer"
             style={{ fontSize: 11, color: "var(--green)", fontFamily: "monospace" }}>View on Solscan ↗</a>
         ))}
-        {effectiveWallet && (
-          <button
-            onClick={() => setShowCashout(true)}
-            style={{
-              width: "100%", padding: "13px 16px", borderRadius: 16,
-              border: "1px solid var(--border2)", background: "var(--surface)",
-              color: "var(--text)", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}
-          >
-            <span>💳</span> Help recipient cash out via Fonbnk →
-          </button>
-        )}
         <button className="btn-primary" style={{ maxWidth: 200 }} onClick={() => { setStep("amount"); setTxSigs([]); setSendResult(null); setShowCashout(false); }}>Send again</button>
         <button onClick={onBack} style={{ fontSize: 13, color: "var(--text3)", background: "none", border: "none", cursor: "pointer" }}>← Back to home</button>
       </div>
@@ -639,6 +616,14 @@ export default function SendScreen({ onBack }: Props) {
         <QrScannerModal
           onResult={addr => setScannedWallet(addr)}
           onClose={() => setShowScanner(false)}
+        />
+      )}
+      {showCashout && (
+        <FonbnkCashoutModal
+          countryCode={displayCountryCode}
+          currencyCode={displayCurrency}
+          amount={sendAmount > 0 ? sendAmount : undefined}
+          onClose={() => setShowCashout(false)}
         />
       )}
       <Wm />
@@ -864,7 +849,7 @@ export default function SendScreen({ onBack }: Props) {
         </div>
       </div>
 
-      {/* ── Review button ── */}
+      {/* ── Review button + Fonbnk alternative ── */}
       <div style={{ padding: "0 16px 16px" }}>
         <button
           className="btn-primary"
@@ -873,6 +858,30 @@ export default function SendScreen({ onBack }: Props) {
           disabled={!effectiveWallet || sendAmount <= 0}
         >
           {loading ? "Loading…" : tab === "instant" ? `Review send $${input} →` : `Review ${holdDays}-day timed send →`}
+        </button>
+
+        {/* Fonbnk alternative — for recipients without a Solana wallet */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0 10px" }}>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600 }}>or</span>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        </div>
+        <button
+          onClick={() => setShowCashout(true)}
+          disabled={sendAmount <= 0}
+          style={{
+            width: "100%", padding: "13px 16px", borderRadius: 16,
+            border: "1px solid var(--border2)", background: "var(--surface)",
+            color: sendAmount > 0 ? "var(--text)" : "var(--text3)",
+            fontSize: 13, fontWeight: 700, cursor: sendAmount > 0 ? "pointer" : "default",
+            fontFamily: "inherit", opacity: sendAmount > 0 ? 1 : 0.5,
+            display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
+          }}
+        >
+          <span>💳 Send via Fonbnk (bank / mobile money) →</span>
+          <span style={{ fontSize: 10, fontWeight: 400, color: "var(--text3)" }}>
+            No Solana wallet needed · fiat delivered directly
+          </span>
         </button>
       </div>
 
