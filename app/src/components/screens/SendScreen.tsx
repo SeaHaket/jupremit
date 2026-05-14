@@ -167,15 +167,23 @@ export default function SendScreen({ onBack }: Props) {
   }
 
   const openFonbnk = async () => {
+    // Open the blank window synchronously inside the click handler so the
+    // browser recognises it as a user-initiated popup (not blocked).
+    const win = window.open("", "_blank", "noopener,noreferrer");
     setFonbnkLoading(true);
     try {
       const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
       if (sendAmount > 0) params.set("amount", sendAmount.toFixed(2));
       const res  = await fetch(`/api/fonbnk/widget-token?${params}`);
       const data = await res.json();
-      if (data.url) window.open(data.url, "_blank", "noopener,noreferrer");
-      else alert("Failed to load Fonbnk: " + (data.error ?? "Unknown error"));
+      if (data.url && win) {
+        win.location.href = data.url;
+      } else {
+        win?.close();
+        alert("Failed to load Fonbnk: " + (data.error ?? "Unknown error"));
+      }
     } catch {
+      win?.close();
       alert("Network error — please try again");
     }
     setFonbnkLoading(false);
