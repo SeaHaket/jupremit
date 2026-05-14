@@ -4,7 +4,9 @@
       "Bash(npx tsc *)",
       "Bash(git commit --allow-empty -m ' *)",
       "Bash(git commit -m ' *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(rmdir app/src/hooks)",
+      "Bash(rmdir app/src/types)"
     ]
   }
 }

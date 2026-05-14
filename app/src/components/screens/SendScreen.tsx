@@ -104,8 +104,6 @@ export default function SendScreen({ onBack }: Props) {
   const [walletInput, setWalletInput]   = useState("");
   const [walletError, setWalletError]   = useState("");
   const [showScanner, setShowScanner]   = useState(false);
-  const [fonbnkUrl, setFonbnkUrl]       = useState<string | null>(null);
-  const [fonbnkFetching, setFonbnkFetching] = useState(false);
   const [quote, setQuote]               = useState<any>(null);
   const [sendResult, setSendResult]     = useState<any>(null);
   const [loading, setLoading]           = useState(false);
@@ -167,58 +165,6 @@ export default function SendScreen({ onBack }: Props) {
     return Math.floor(usdcBalance * pct * 100) / 100;
   }
 
-  // Pre-fetch signed Fonbnk URL so the ideal click path is fully synchronous.
-  useEffect(() => {
-    if (sendAmount <= 0) { setFonbnkUrl(null); return; }
-    let cancelled = false;
-    setFonbnkFetching(true);
-    setFonbnkUrl(null);
-    const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
-    params.set("amount", sendAmount.toFixed(2));
-    fetch(`/api/fonbnk/widget-token?${params}`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); } })
-      .catch(() => { if (!cancelled) setFonbnkFetching(false); });
-    return () => { cancelled = true; };
-  }, [sendAmount, displayCountryCode, displayCurrency]);
-
-  function openFonbnk() {
-    if (sendAmount <= 0) return;
-
-    if (fonbnkUrl) {
-      // Best path: URL pre-fetched → synchronous open, popup blocker never triggers
-      const url = fonbnkUrl;
-      setFonbnkUrl(null);
-      window.open(url, "_blank", "noopener,noreferrer");
-      // Re-fetch immediately for the next click
-      setFonbnkFetching(true);
-      const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
-      params.set("amount", sendAmount.toFixed(2));
-      fetch(`/api/fonbnk/widget-token?${params}`)
-        .then(r => r.json())
-        .then(d => { setFonbnkUrl(d.url ?? null); setFonbnkFetching(false); })
-        .catch(() => setFonbnkFetching(false));
-      return;
-    }
-
-    // Fallback: pre-fetch hasn't resolved yet.
-    // Open a blank window synchronously (user gesture), then navigate it.
-    // Chrome only blocks window.open(url) of NEW windows from async — navigating
-    // an already-open window after await is always allowed.
-    const win = window.open("about:blank", "_blank");
-    if (!win) { alert("Please allow popups for this site and try again."); return; }
-    setFonbnkFetching(true);
-    const params = new URLSearchParams({ country: displayCountryCode, currency: displayCurrency });
-    params.set("amount", sendAmount.toFixed(2));
-    fetch(`/api/fonbnk/widget-token?${params}`)
-      .then(r => r.json())
-      .then(d => {
-        setFonbnkFetching(false);
-        if (d.url) { win.location.href = d.url; }
-        else { win.close(); alert("Fonbnk error: " + (d.error ?? "Unknown error")); }
-      })
-      .catch(() => { setFonbnkFetching(false); win.close(); alert("Network error — please try again."); });
-  }
 
   const fetchQuote = async () => {
     setLoading(true);
@@ -864,37 +810,15 @@ export default function SendScreen({ onBack }: Props) {
         </div>
       </div>
 
-      {/* Delivery method buttons */}
+      {/* Send button */}
       <div style={{ padding: "0 16px 16px" }}>
         <button
           className="btn-primary"
-          style={{ background: accentColor, color: tab === "instant" ? "var(--green-dk)" : "#fff", marginBottom: 10 }}
+          style={{ background: accentColor, color: tab === "instant" ? "var(--green-dk)" : "#fff" }}
           onClick={() => setStep("wallet")}
           disabled={sendAmount <= 0}
         >
           {tab === "instant" ? `◎ Send to Solana wallet →` : `◎ Timed send to Solana wallet →`}
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px" }}>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600 }}>or</span>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-        </div>
-
-        <button
-          className="btn-primary"
-          onClick={openFonbnk}
-          disabled={sendAmount <= 0}
-          style={{
-            background: accentColor,
-            color: tab === "instant" ? "var(--green-dk)" : "#fff",
-            display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
-          }}
-        >
-          <span>{fonbnkFetching && !fonbnkUrl ? "Preparing…" : "💳 Send via Fonbnk (bank / mobile money) →"}</span>
-          <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}>
-            No Solana wallet needed · fiat delivered directly
-          </span>
         </button>
       </div>
 
