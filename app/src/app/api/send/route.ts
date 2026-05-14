@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { txLimiter, checkRateLimit } from "@/lib/ratelimit";
 
 const USDC    = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const JUPUSD  = "jupyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 const JUP_API = "https://api.jup.ag";
 const API_KEY = process.env.JUPITER_API_KEY ?? "";
 
+const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const MAX_AMOUNT    = 1_000_000 * 1_000_000; // 1 M USDC in lamports
+
 // Estimated Solana tx fee in USDC (≈0.000005 SOL at ~$84)
-const ESTIMATED_FEE_USDC = 0.0004;
-const ESTIMATED_FEE_RAW  = Math.round(ESTIMATED_FEE_USDC * 1_000_000);
+const ESTIMATED_FEE_RAW = Math.round(0.0004 * 1_000_000);
 
 function getRoute(routePlan: any[]): string {
   if (!routePlan?.length) return "Jupiter Ultra";
@@ -15,20 +17,28 @@ function getRoute(routePlan: any[]): string {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const limited = await checkRateLimit(txLimiter, ip, "send");
+  if (limited) return limited;
+
   const { senderWallet, recipientWallet, amountUsdc } = await req.json();
 
-  if (!senderWallet || !recipientWallet || !amountUsdc)
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  if (!SOL_PUBKEY_RE.test(senderWallet))
+    return NextResponse.json({ error: "Invalid senderWallet" }, { status: 400 });
+  if (!SOL_PUBKEY_RE.test(recipientWallet))
+    return NextResponse.json({ error: "Invalid recipientWallet" }, { status: 400 });
 
-  const amountRaw = Math.round(amountUsdc * 1_000_000);
+  const amountNum = Number(amountUsdc);
+  if (!amountUsdc || !Number.isFinite(amountNum) || amountNum <= 0)
+    return NextResponse.json({ error: "Invalid amountUsdc" }, { status: 400 });
+
+  const amountRaw = Math.round(amountNum * 1_000_000);
+  if (amountRaw > MAX_AMOUNT)
+    return NextResponse.json({ error: "Amount exceeds maximum" }, { status: 400 });
 
   try {
-    // ── Try Instant Boost: USDC → JupUSD → USDC in one Jupiter Ultra order ──
-    // We use a two-hop swap: USDC → JupUSD → USDC
-    // Jupiter Ultra handles this atomically in one transaction
-    // destinationWallet sends the output directly to recipient
+    // ── Try Instant Boost: USDC → JupUSD → USDC via Jupiter Ultra ───────────
     let boostData: any = null;
-
     try {
       const boostRes = await fetch(
         `${JUP_API}/ultra/v1/order?` + new URLSearchParams({
@@ -37,8 +47,6 @@ export async function POST(req: NextRequest) {
           amount:            amountRaw.toString(),
           taker:             senderWallet,
           destinationWallet: recipientWallet,
-          // Route through JupUSD as intermediate for the spread capture
-          // Jupiter will find optimal path — may or may not use JupUSD
         }),
         { headers: { "x-api-key": API_KEY } }
       );
@@ -47,9 +55,8 @@ export async function POST(req: NextRequest) {
       boostData = null;
     }
 
-    // ── Evaluate if boost is net positive after fees ──────────────────────────
-    const outAmount  = Number(boostData?.outAmount ?? 0);
-    const netGainRaw = outAmount - amountRaw - ESTIMATED_FEE_RAW;
+    const outAmount    = Number(boostData?.outAmount ?? 0);
+    const netGainRaw   = outAmount - amountRaw - ESTIMATED_FEE_RAW;
     const isNetPositive = boostData?.transaction && outAmount > 0 && netGainRaw > 0;
 
     if (isNetPositive) {
@@ -66,7 +73,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── Fall back to direct USDC transfer (one SPL tx, client-side) ──────────
+    // ── Fall back to direct USDC transfer (client-side SPL tx) ───────────────
     const reason = !boostData?.transaction
       ? "No boost route available"
       : `Boost net: $${(netGainRaw / 1_000_000).toFixed(4)} — not worth the fee`;

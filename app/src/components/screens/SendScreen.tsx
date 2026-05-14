@@ -16,6 +16,7 @@ const QrScannerModal = dynamic(
 
 const PROTOCOL_FEE_BPS  = 20;                           // 0.20 %
 const FEE_WALLET        = process.env.NEXT_PUBLIC_FEE_WALLET ?? "";
+const SOL_PUBKEY_RE     = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 type Tab  = "instant" | "timed";
 type Step = "amount" | "review" | "executing" | "success" | "error";
@@ -126,10 +127,12 @@ export default function SendScreen({ onBack }: Props) {
   const countryData = COUNTRIES.find(c => c.code === (defaultRecipient?.country ?? ""));
   const providers   = PROVIDERS_BY_COUNTRY[defaultRecipient?.country ?? ""] ?? [];
   const effectiveWallet = scannedWallet ?? defaultRecipient?.wallet;
-  const feeUsdc  = Math.round(sendAmount * PROTOCOL_FEE_BPS) / 10_000;
-  const netUsdc  = sendAmount - feeUsdc;
-  const feeRaw   = Math.round(feeUsdc  * 1_000_000);
-  const netRaw   = Math.round(netUsdc  * 1_000_000);
+  // Compute in lamports first to avoid floating-point rounding at sub-cent amounts
+  const totalRaw = Math.round(sendAmount * 1_000_000);
+  const feeRaw   = Math.max(1, Math.round(totalRaw * PROTOCOL_FEE_BPS / 10_000));
+  const netRaw   = totalRaw - feeRaw;
+  const feeUsdc  = feeRaw / 1_000_000;
+  const netUsdc  = netRaw / 1_000_000;
 
   // Display country drives FX preview — independent of saved recipient
   const displayCountry   = COUNTRIES.find(c => c.code === displayCountryCode) ?? COUNTRIES[0];
@@ -204,8 +207,9 @@ export default function SendScreen({ onBack }: Props) {
   const signAndSend = async (base64Tx: string): Promise<string> => {
     const tx     = VersionedTransaction.deserialize(Buffer.from(base64Tx, "base64"));
     const signed = await signTransaction!(tx as any);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     const sig    = await connection.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
-    await connection.confirmTransaction(sig, "confirmed");
+    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
     return sig;
   };
 
@@ -220,23 +224,31 @@ export default function SendScreen({ onBack }: Props) {
     const fromAta = await getAssociatedTokenAddress(USDC, fromPub);
     const toAta   = await getAssociatedTokenAddress(USDC, toPub);
     const tx      = new Transaction();
-    if (!await connection.getAccountInfo(toAta))
+
+    let toAtaExists = false;
+    try { toAtaExists = !!(await connection.getAccountInfo(toAta)); } catch {}
+    if (!toAtaExists)
       tx.add(createAssociatedTokenAccountInstruction(fromPub, toAta, toPub, USDC));
+
     tx.add(createTransferInstruction(fromAta, toAta, fromPub, BigInt(netTransferRaw), [], TOKEN_PROGRAM_ID));
-    // Bundle protocol fee transfer in the same transaction (one wallet approval)
+
+    // Bundle protocol fee in the same tx (one wallet approval)
     if (protocolFeeRaw > 0 && FEE_WALLET) {
       const feePub = new PublicKey(FEE_WALLET);
       const feeAta = await getAssociatedTokenAddress(USDC, feePub);
-      if (!await connection.getAccountInfo(feeAta))
+      let feeAtaExists = false;
+      try { feeAtaExists = !!(await connection.getAccountInfo(feeAta)); } catch {}
+      if (!feeAtaExists)
         tx.add(createAssociatedTokenAccountInstruction(fromPub, feeAta, feePub, USDC));
       tx.add(createTransferInstruction(fromAta, feeAta, fromPub, BigInt(protocolFeeRaw), [], TOKEN_PROGRAM_ID));
     }
-    const { blockhash } = await connection.getLatestBlockhash();
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
     tx.feePayer = fromPub;
     const signed = await signTransaction!(tx as any);
-    const sig    = await connection.sendRawTransaction((signed as any).serialize());
-    await connection.confirmTransaction(sig, "confirmed");
+    const sig    = await connection.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
+    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
     return sig;
   };
 
@@ -260,6 +272,11 @@ export default function SendScreen({ onBack }: Props) {
       if (data.strategy === "instant_boost") {
         setExecStatus("Instant Boost active — approve in wallet…");
         const sig = await signAndSend(data.tx);
+        // Collect protocol fee separately (Jupiter tx is opaque — fee stays in sender wallet)
+        if (feeRaw > 0 && FEE_WALLET) {
+          setExecStatus("Collecting protocol fee — approve in wallet…");
+          await doDirectTransfer(publicKey, new PublicKey(FEE_WALLET), feeRaw, 0);
+        }
         setTxSigs([sig]);
         addTx({ type: "instant_send", amountUsdc: sendAmount, feeUsdc, txSig: sig, ts: Date.now(), toName, toWallet: effectiveWallet, strategy: "instant_boost" });
       } else {
@@ -298,6 +315,11 @@ export default function SendScreen({ onBack }: Props) {
 
       setExecStatus("Approve the Jupiter Lend deposit in your wallet…");
       const sig = await signAndSend(data.transaction);
+      // Collect protocol fee separately (Lend deposit tx is opaque — fee stays in sender wallet)
+      if (feeRaw > 0 && FEE_WALLET) {
+        setExecStatus("Collecting protocol fee — approve in wallet…");
+        await doDirectTransfer(publicKey, new PublicKey(FEE_WALLET), feeRaw, 0);
+      }
       setTxSigs([sig]);
       addTx({ type: "timed_deposit", amountUsdc: sendAmount, feeUsdc, txSig: sig, ts: Date.now(), toName: scannedWallet ? "Scanned address" : defaultRecipient?.name, toWallet: effectiveWallet });
 
@@ -345,10 +367,13 @@ export default function SendScreen({ onBack }: Props) {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Withdraw failed");
 
+      if (!SOL_PUBKEY_RE.test(ts.recipientWallet))
+        throw new Error("Stored recipient wallet address is invalid");
       const withdrawSig  = await signAndSend(data.transaction);
       const recipientPub = new PublicKey(ts.recipientWallet);
-      const transferSig  = await doDirectTransfer(publicKey, recipientPub, data.senderGetsRaw);
-      addTx({ type: "timed_release", amountUsdc: ts.amountUsdc, feeUsdc: 0, txSig: transferSig, ts: Date.now(), toName: ts.recipientName, toWallet: ts.recipientWallet, yieldUsdc: data.yieldUsdc ?? 0 });
+      // Bundle yield fee in same tx as recipient transfer (one approval)
+      const transferSig  = await doDirectTransfer(publicKey, recipientPub, data.senderGetsRaw, data.feeRaw ?? 0);
+      addTx({ type: "timed_release", amountUsdc: ts.amountUsdc, feeUsdc: data.feeUsdc ?? 0, txSig: transferSig, ts: Date.now(), toName: ts.recipientName, toWallet: ts.recipientWallet, yieldUsdc: data.yieldUsdc ?? 0 });
 
       markReleased(tsId, transferSig, data.yieldUsdc ?? 0);
     } catch (e: any) {

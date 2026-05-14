@@ -1,19 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { txLimiter, checkRateLimit } from "@/lib/ratelimit";
 
 const USDC    = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JUP_API = "https://api.jup.ag";
 const API_KEY = process.env.JUPITER_API_KEY ?? "";
 
+const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const MAX_AMOUNT    = 1_000_000 * 1_000_000; // 1 M USDC in lamports
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const limited = await checkRateLimit(txLimiter, ip, "timesend:deposit");
+  if (limited) return limited;
+
   const { senderWallet, amountUsdc } = await req.json();
 
-  if (!senderWallet || !amountUsdc)
-    return NextResponse.json({ error: "senderWallet and amountUsdc required" }, { status: 400 });
+  if (!senderWallet || !SOL_PUBKEY_RE.test(senderWallet))
+    return NextResponse.json({ error: "Invalid senderWallet" }, { status: 400 });
 
-  const amountRaw = Math.round(amountUsdc * 1_000_000);
+  const amountNum = Number(amountUsdc);
+  if (!amountUsdc || !Number.isFinite(amountNum) || amountNum <= 0)
+    return NextResponse.json({ error: "Invalid amountUsdc" }, { status: 400 });
+
+  const amountRaw = Math.round(amountNum * 1_000_000);
+  if (amountRaw > MAX_AMOUNT)
+    return NextResponse.json({ error: "Amount exceeds maximum" }, { status: 400 });
 
   try {
-    // Get Jupiter Lend deposit transaction
     const res  = await fetch(`${JUP_API}/lend/v1/earn/deposit`, {
       method:  "POST",
       headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
@@ -25,10 +38,10 @@ export async function POST(req: NextRequest) {
       throw new Error(data.error ?? "Jupiter Lend deposit failed — no transaction returned");
 
     return NextResponse.json({
-      transaction:      data.transaction,   // base64 unsigned tx — client signs
+      transaction:     data.transaction,
       amountRaw,
-      amountUsdc,
-      juicedAmountRaw:  data.juicedAmountRaw ?? amountRaw, // jlUSDC units
+      amountUsdc:      amountNum,
+      juicedAmountRaw: data.juicedAmountRaw ?? amountRaw,
       senderWallet,
     });
   } catch (e: any) {

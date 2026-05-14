@@ -40,7 +40,11 @@ export async function GET(req: NextRequest) {
   const referralFee     = sp.get("referralFee");
   if (referralAccount && SOL_PUBKEY_RE.test(referralAccount)) {
     params.set("referralAccount", referralAccount);
-    if (referralFee) params.set("referralFee", referralFee);
+    if (referralFee) {
+      const refFeeNum = parseInt(referralFee, 10);
+      if (Number.isFinite(refFeeNum) && refFeeNum >= 0 && refFeeNum <= 500)
+        params.set("referralFee", String(refFeeNum));
+    }
   }
 
   try {

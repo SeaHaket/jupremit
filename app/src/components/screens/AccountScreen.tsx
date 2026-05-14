@@ -1,5 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
+
+const SOL_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -191,6 +193,10 @@ export default function AccountScreen() {
 
   const handleAdd = () => {
     if (!name.trim() || !wallet.trim()) return;
+    if (!SOL_PUBKEY_RE.test(wallet.trim())) {
+      alert("Invalid Solana wallet address. Please check and try again.");
+      return;
+    }
     addRecipient({
       name: name.trim(),
       country: selectedCountry.name,
