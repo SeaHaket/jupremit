@@ -47,7 +47,7 @@ It lets OFWs and seafarers send USDC home to their families with:
 - **$0.003 in fees** (Solana gas only — no platform fee, no FX spread)
 - **Mid-market exchange rate** — exactly what Reuters quotes, not what Brightwell quotes
 - **Yield on transit** — instead of fees eating your money, JUICED (Jupiter Lend) earns 4.5% APY while your family claims it
-- **Instant Boost** — a round-trip USDC→JupUSD→USDC swap via Jupiter Ultra that actually nets a small positive return in under 1 second
+- **Instant Boost** — a Jupiter Ultra swap that routes USDC through the best available path, landing the recipient with equal or slightly more than was sent
 
 This is the first remittance product where sending money home can leave the recipient with **more** than you sent.
 
@@ -73,32 +73,32 @@ The comparison table is **fully dynamic** — selecting any of the 12 destinatio
 
 ---
 
-## Three Send Modes
+## Two Send Modes
 
-### ⚡ Instant Boost — under 1 second
-USDC → JupUSD → USDC via Jupiter Ultra API. Smart routing checks if the round trip is net positive after network fees. If yes, boost runs in one atomic transaction. If not, direct USDC transfer is used instead. **One wallet approval either way.**
+### ⚡ Instant Send — under 1 second
+The app calls `/api/send`, which tries a Jupiter Ultra swap (USDC → best route → USDC) to the recipient's wallet. If the round-trip is net positive after gas, the boosted transaction is returned. If not, the response signals a direct SPL USDC transfer instead. **One wallet approval either way.**
+
+Live quote data from `/api/quote` shows both modes side by side so the user can choose before confirming.
 
 ### 🕐 Timed Send — 5, 15, or 30 days
-USDC → **JUICED** (jlUSDC, Jupiter Lend Earn) → holds for chosen duration → USDC + yield released to recipient.
+USDC → **JUICED** (Jupiter Lend Earn) → holds for the chosen duration → USDC + yield released to the recipient wallet.
 
-The sender deposits USDC into Jupiter Lend, earning **4.5% APY** during the hold period. After the timer expires, the sender returns to the app and clicks "Release" — the app withdraws from JUICED and sends principal + yield to the recipient in one flow. The sender controls the release; the recipient gets the full amount including yield.
+The sender deposits USDC into Jupiter Lend and earns **4.5% APY** during the hold period. When the timer expires, the sender returns to the app and clicks "Release" — the app withdraws from JUICED and sends principal + yield to the recipient in a single flow.
 
 **Why this matters for seafarers:** OFWs often get paid on ship contracts that end on specific dates. A 15 or 30-day timed send lets them deposit when they get paid and have it arrive at the exact time their family needs it — with yield on top instead of fees taken away.
 
-JupUSD (backed by BlackRock BUIDL T-bills) trades at a slight premium to USDC. The round-trip swap via the OKX DEX Router captures this spread. From live data:
+---
 
-```
-100 USDC → 99.963732 JupUSD → 100.005184 USDC
-Platform fee: 0.00%   Route: OKX DEX Router
-Net gain after gas: +$0.002184
-```
+## Savings Vault
 
-Your family gets slightly more USDC than you sent. Zero waiting.
+A simple non-custodial lending interface powered by Jupiter Lend.
 
-### 🔒 Seafarer Savings Vault — 1 to 5 months
-Designed specifically for seafarers on ship contracts.
+- Deposit any amount of USDC into JUICED (jlUSDC) and earn live APY
+- Withdraw part or all of your balance at any time — no lock-up period
+- Your live balance and accumulated yield are displayed in real time
+- 25 / 50 / 75 / MAX quick-fill chips based on your wallet balance
 
-Monthly USDC deposits go into JUICED, compounding at 4.5% APY. At maturity, **funds return to the sender's JupCard wallet** — not automatically to the recipient. The seafarer decides at maturity: send it home, roll into a new vault, or keep earning. You can extend the vault before maturity if your contract renews.
+Funds sit in Jupiter Lend, not in any JupRemit contract. The app is purely an interface.
 
 ---
 
@@ -114,18 +114,15 @@ JupCard virtual US bank account
     ▼
 PasaPay / JupRemit dApp
     │
-    ├─ Yield Router (server-side)
-    │   ├─ Instant Boost:    Ultra /order + /execute  →  USDC→JupUSD→USDC
-    │   ├─ Transit Yield:    Lend /deposit             →  USDC→JUICED (4.5% APY)
-    │   └─ Savings Vault:    Lend /deposit monthly     →  JUICED, 1–5 months
+    ├─ Send Screen
+    │   ├─ Instant Send:    Ultra /order → boost or direct SPL transfer
+    │   └─ Timed Send:      Lend /deposit → JUICED → release with yield
     │
-    ├─ Anchor Program (on-chain PDAs)
-    │   ├─ Escrow PDA        — holds funds, enforces claim window
-    │   └─ Vault PDA         — holds savings, enforces maturity
+    ├─ Savings Vault
+    │   └─ Lend /deposit + /withdraw → JUICED (any amount, anytime)
     │
-    └─ Offramp
-        └─ Recipient's Coins.ph / GoPay / M-Pesa / Standard Bank Solana wallet
-            └─ They convert USDC → PHP / IDR / KES / ZAR at their provider's rate
+    └─ Recipient's Solana wallet
+        └─ They convert USDC → PHP / IDR / KES / ZAR at their provider's rate
 ```
 
 ---
@@ -136,14 +133,11 @@ All calls go through a single API key from [portal.jup.ag](https://portal.jup.ag
 
 | API | Endpoint | Used for |
 |-----|----------|----------|
-| **Ultra Swap** | `GET /ultra/v1/order` | Instant Boost quotes, both swap legs |
-| **Ultra Swap** | `POST /ultra/v1/execute` | Execute signed swaps via Jupiter Beam (MEV protected) |
-| **Lend Earn** | `GET /lend/v1/earn/tokens` | JUICED APY, fToken mint address |
-| **Lend Earn** | `GET /lend/v1/earn/positions` | User's JUICED balance |
-| **Lend Earn** | `GET /lend/v1/earn/earnings` | Yield earned to date |
-| **Lend Earn** | `POST /lend/v1/earn/deposit` | Timed Send: deposit USDC into JUICED |
-| **Lend Earn** | `POST /lend/v1/earn/withdraw` | Withdraw JUICED → USDC on claim/maturity |
-| **Price** | `GET /price/v2` | Token prices for UI display |
+| **Ultra Swap** | `GET /ultra/v1/order` | Instant Send boost quote (quote route) + boost execution (send route) |
+| **Lend Earn** | `GET /lend/v1/earn/tokens` | Live JUICED APY (apy + quote routes) |
+| **Lend Earn** | `GET /lend/v1/earn/positions` | Vault balance + Timed Send release check |
+| **Lend Earn** | `POST /lend/v1/earn/deposit` | Vault deposit + Timed Send deposit |
+| **Lend Earn** | `POST /lend/v1/earn/withdraw` | Vault withdraw |
 
 ---
 
@@ -180,51 +174,56 @@ The Anchor program lives at `programs/jupremit/src/lib.rs`.
 
 ```
 jupremit/
-├── DX-REPORT.md                     ← Developer Experience Report (submit with project)
-├── Anchor.toml                      ← Anchor config (cluster, wallet, program IDs)
-├── Cargo.toml                       ← Rust workspace
-├── programs/jupremit/src/lib.rs     ← Anchor smart contract (all on-chain logic)
-├── tests/jupremit.ts                ← Integration tests (10 test cases)
-├── scripts/deploy-devnet.sh         ← Automated devnet deploy script
-└── app/                             ← Next.js 14 frontend (branded "PasaPay")
-    ├── .env.local                   ← Your keys (you create this)
+├── DX-REPORT.md                         ← Developer Experience Report
+├── Anchor.toml                          ← Anchor config (cluster, wallet, program IDs)
+├── Cargo.toml                           ← Rust workspace
+├── programs/jupremit/src/lib.rs         ← Anchor smart contract (all on-chain logic)
+├── tests/                               ← Integration tests
+├── scripts/deploy-devnet.sh             ← Automated devnet deploy script
+└── app/                                 ← Next.js 14 frontend (branded "PasaPay")
+    ├── .env.example                     ← All required env vars documented
+    ├── .env.local                       ← Your keys (git-ignored, you create this)
     ├── public/
-    │   ├── logo.svg                 ← PasaPay app icon
-    │   └── jupit-logo.png           ← "Just Jup It" background on landing page
-    ├── src/
-    │   ├── app/
-    │   │   ├── page.tsx             ← Main page / tab router (Home, Send, Vault, Account)
-    │   │   ├── layout.tsx           ← Wallet adapter provider
-    │   │   ├── globals.css          ← Jupiter dark design system
-    │   │   └── api/                 ← 7 server-side API routes
-    │   │       ├── fx/              ← GET live FX rates (open.er-api.com + fallbacks)
-    │   │       ├── apy/             ← GET JUICED APY
-    │   │       ├── position/        ← GET user Lend position
-    │   │       ├── quote/           ← GET full send mode comparison
-    │   │       ├── instant-boost/   ← POST Instant Boost quote
-    │   │       └── lend/            ← POST deposit / withdraw
-    │   ├── lib/
-    │   │   ├── jupiter.ts           ← All Jupiter API calls
-    │   │   ├── constants.ts         ← Token mints, providers, FX fallbacks
-    │   │   └── solana.ts            ← Transaction signing utilities
-    │   ├── hooks/useJupRemit.ts     ← All React hooks (FX, APY, send flow)
-    │   ├── store/jupremit.ts        ← Zustand global state
-    │   ├── types/index.ts           ← TypeScript types
-    │   └── components/
-    │       ├── ui/
-    │       │   ├── WalletProvider.tsx   ← Phantom/Solflare/Backpack setup
-    │       │   ├── AddressInput.tsx     ← Recipient address input
-    │       │   └── Numpad.tsx           ← Custom numeric keypad
-    │       └── screens/
-    │           ├── HomeScreen.tsx       ← Dashboard + country selector + live comparison
-    │           ├── SendScreen.tsx       ← Full send flow with dynamic numpad
-    │           ├── VaultScreen.tsx      ← Savings vault manager
-    │           └── AccountScreen.tsx    ← Wallet + recipients + 12-country selector
+    │   ├── favicon.svg                  ← Browser tab icon
+    │   ├── logo.svg                     ← PasaPay app icon
+    │   └── jupit-logo.png               ← Background watermark
+    └── src/
+        ├── app/
+        │   ├── page.tsx                 ← Tab router (Home · Send · Vault · Account)
+        │   ├── layout.tsx               ← Metadata, wallet adapter, global CSS
+        │   ├── globals.css              ← Jupiter dark design system
+        │   └── api/                     ← 10 server-side API routes (API key stays server-side)
+        │       ├── fx/route.ts          ← GET  live FX rates (open.er-api.com + fallbacks)
+        │       ├── apy/route.ts         ← GET  live JUICED APY from Jupiter Lend
+        │       ├── balance/route.ts     ← GET  on-chain USDC balance
+        │       ├── quote/route.ts       ← GET  live send mode comparison (Ultra quotes + FX)
+        │       ├── send/route.ts        ← POST instant boost or direct send signal
+        │       ├── position/route.ts    ← GET  user JUICED vault position + yield
+        │       ├── lend/
+        │       │   ├── deposit/route.ts ← POST build Jupiter Lend deposit tx (Vault)
+        │       │   └── withdraw/route.ts← POST build Jupiter Lend withdraw tx (Vault)
+        │       └── time-send/
+        │           ├── deposit/route.ts ← POST build Jupiter Lend deposit tx (Timed Send)
+        │           └── release/route.ts ← POST build JUICED → recipient release tx
+        ├── lib/
+        │   ├── constants.ts             ← Token mints, countries, providers, FX fallbacks
+        │   └── ratelimit.ts             ← Upstash Redis rate limiting (read / tx / quote)
+        ├── store/jupremit.ts            ← Zustand global state (recipients, tx history, app)
+        └── components/
+            ├── ui/
+            │   ├── WalletProvider.tsx   ← Phantom / Solflare / Backpack setup
+            │   ├── Numpad.tsx           ← Custom numeric keypad
+            │   └── QrScannerModal.tsx   ← Camera QR scanner for wallet addresses
+            └── screens/
+                ├── HomeScreen.tsx       ← Dashboard · country selector · live comparison
+                ├── SendScreen.tsx       ← Full send flow (amount → wallet → review → exec)
+                ├── VaultScreen.tsx      ← Savings vault (deposit / withdraw JUICED anytime)
+                └── AccountScreen.tsx    ← Wallet info · saved recipients · tx history
 ```
 
 ---
 
-## Setup & Deploy
+## Setup & Run
 
 ### Prerequisites
 ```bash
@@ -234,21 +233,23 @@ solana --version  # 1.18+
 anchor --version  # 0.30.1+
 ```
 
-### Deploy everything in one command
+### 1. Deploy the Anchor program (devnet)
 ```bash
 bash scripts/deploy-devnet.sh
 ```
+This automatically: checks prereqs → airdrops devnet SOL → builds the program → patches `declare_id!` and `Anchor.toml` → deploys → writes the program ID to `app/.env.local`.
 
-This automatically: checks prereqs → airdrops devnet SOL → builds program → gets real program ID → patches `declare_id!` and `Anchor.toml` → rebuilds → deploys → writes `app/.env.local`.
-
-### Add your Jupiter API key
+### 2. Add your environment variables
 ```bash
-# app/.env.local  (auto-created by deploy script — just add this line)
-JUPITER_API_KEY=your_key_from_portal_jup_ag
+cp app/.env.example app/.env.local
+# then fill in your keys — see .env.example for descriptions of each variable
 ```
-Get your free key at [portal.jup.ag](https://portal.jup.ag).
 
-### Run the frontend
+Get your free Jupiter API key at [portal.jup.ag](https://portal.jup.ag).
+Get a free Helius RPC at [helius.dev](https://helius.dev) (optional but recommended).
+Get a free Upstash Redis at [console.upstash.com](https://console.upstash.com) (optional — disables rate limiting if absent).
+
+### 3. Run the frontend
 ```bash
 cd app
 npm install
@@ -256,7 +257,7 @@ npm run dev
 # → http://localhost:3000
 ```
 
-### Run tests
+### 4. Run Anchor tests
 ```bash
 anchor test --provider.cluster devnet
 ```
