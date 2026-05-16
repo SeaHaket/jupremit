@@ -13,7 +13,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title:       "JupRemit — Global DeFi Remittance on Solana",
   description: "$0 fees. Mid-market rates. Earn yield in transit. Send to 12+ countries via Jupiter.",
-  icons:       { icon: "/logo.svg" },
+  icons: {
+    icon:  [{ url: "/favicon.svg", type: "image/svg+xml" }, { url: "/logo.svg" }],
+    apple: "/logo.svg",
+  },
   openGraph: {
     title:       "JupRemit",
     description: "Send money anywhere in the world for almost free — DeFi remittance powered by Jupiter on Solana.",
